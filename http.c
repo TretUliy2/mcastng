@@ -109,7 +109,7 @@ int create_listening_socket(int i, int srv_csock) {
 			sockopt, sizeof(sockopt_buf)) == -1) {
 		Log(LOG_ERR, "%s(%d): Sockopt set failed : %s", __FUNCTION__, i,
 				strerror(errno));
-		return NULL;
+		return -1;
 	}
 	// msg servsock: bind inet/0.0.0.0:8080
 	sprintf(path, "%s%s:", server_cfg[i].name, SERVSOCK);
@@ -144,7 +144,7 @@ int create_listening_socket(int i, int srv_csock) {
 	if ((int) token < 0 && errno != EINPROGRESS && errno != EALREADY) {
 		Log(LOG_ERR, "%s(%d): Accept Failed %s", __FUNCTION__, i,
 				strerror(errno));
-		return NULL;
+		return -1;
 	}
 	tokens[i] = token;
 	return 1;
