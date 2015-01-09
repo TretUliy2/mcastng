@@ -37,8 +37,7 @@ int drop_mgroup(int srv_num);
 
 // External Function
 void Log(int log, const char *fmt, ...);
-int mkhub_udp(int srv_num)
-{
+int mkhub_udp(int srv_num) {
 	/*  Goals of this function in ngctl syntax
 	 ngctl -f-<<-SEQ
 	 mkpeer . hub tmp tmp
@@ -59,8 +58,7 @@ int mkhub_udp(int srv_num)
 	struct igmp igmp;
 	struct ip_mreq ip_mreq;
 
-	union
-	{
+	union {
 		u_char buf[sizeof(struct ng_ksocket_sockopt) + sizeof(int)];
 		struct ng_ksocket_sockopt sockopt;
 	} sockopt_buf;
@@ -86,26 +84,19 @@ int mkhub_udp(int srv_num)
 	memset(name, 0, sizeof(name));
 	memset(path, 0, sizeof(path));
 
-	Log(LOG_NOTICE,
-			"%s(%d): mcast = %s name = %s server = %s:%d",
-			__FUNCTION__, srv_num,
-			src,
-			server_cfg[srv_num].name,
-			dst,
+	Log(LOG_NOTICE, "%s(%d): mcast = %s name = %s server = %s:%d", __FUNCTION__,
+			srv_num, src, server_cfg[srv_num].name, dst,
 			ntohs(server_cfg[srv_num].dst.sin_port));
 
-	if (debug == 1)
-	{
+	if (debug == 1) {
 		Log(LOG_DEBUG, "%s(%d): memsets done", __FUNCTION__, srv_num);
 	}
 	// Parse group making ip and port
 
 	memcpy(basename, server_cfg[srv_num].name, sizeof(basename));
 
-	Log(LOG_NOTICE, "%s(%d): group = %s port = %d basename = %s",
-			__FUNCTION__, srv_num, src,
-			ntohs(server_cfg[srv_num].src.sin_port), basename);
-
+	Log(LOG_NOTICE, "%s(%d): group = %s port = %d basename = %s", __FUNCTION__,
+			srv_num, src, ntohs(server_cfg[srv_num].src.sin_port), basename);
 
 	// mkpeer . hub tmp tmp
 	sprintf(path, ".");
@@ -116,8 +107,7 @@ int mkhub_udp(int srv_num)
 	sprintf(mkp.peerhook, "%s", peerhook);
 
 	if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE, NGM_MKPEER, &mkp,
-			sizeof(mkp)) < 0)
-	{
+			sizeof(mkp)) < 0) {
 		Log(LOG_ERR,
 				"%s(%d): mkpeer . hub tmp tmp Creating and connecting node error: %s",
 				__FUNCTION__, srv_num, strerror(errno));
@@ -125,27 +115,20 @@ int mkhub_udp(int srv_num)
 	}
 	// name .:tmp fanout
 	sprintf(path, ".:%s", ourhook);
-	if (NgNameNode(csock, path, "%s", basename) < 0)
-	{
+	if (NgNameNode(csock, path, "%s", basename) < 0) {
 		Log(LOG_ERR, "%s(%d): Naming Node %s failed: %s", __FUNCTION__, srv_num,
 				basename, strerror(errno));
 		sprintf(path, "%s:", basename);
-		if (errno == EADDRINUSE)
-		{
+		if (errno == EADDRINUSE) {
 			if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE, NGM_SHUTDOWN, NULL,
-					0) < 0)
-			{
-				Log(LOG_INFO, "%s(%d): Error shutdowning %s : %s",
-						__FUNCTION__, srv_num, path, strerror(errno));
+					0) < 0) {
+				Log(LOG_INFO, "%s(%d): Error shutdowning %s : %s", __FUNCTION__,
+						srv_num, path, strerror(errno));
+			} else {
+				Log(LOG_INFO, "%s(%d): node %s shutdowned", __FUNCTION__,
+						srv_num, path);
 			}
-			else
-			{
-				Log(LOG_INFO, "%s(%d): node %s shutdowned", __FUNCTION__, srv_num,
-						path);
-			}
-		}
-		else
-		{
+		} else {
 			return 0;
 		}
 	}
@@ -156,8 +139,7 @@ int mkhub_udp(int srv_num)
 	snprintf(mkp.peerhook, sizeof(mkp.peerhook), "inet/dgram/udp");
 
 	if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE, NGM_MKPEER, &mkp,
-			sizeof(mkp)) < 0)
-	{
+			sizeof(mkp)) < 0) {
 		Log(LOG_ERR,
 				"%s(%d): mkpeer fanout: ksocket up inet/stream/tcp error: %s",
 				__FUNCTION__, srv_num, strerror(errno));
@@ -167,8 +149,7 @@ int mkhub_udp(int srv_num)
 	sprintf(path, "%s:up", basename);
 	sprintf(name, "%s-upstream", basename);
 
-	if (NgNameNode(csock, path, "%s", name) < 0)
-	{
+	if (NgNameNode(csock, path, "%s", name) < 0) {
 		Log(LOG_ERR, "%s(%d): Naming Node %s failed %s", __FUNCTION__, srv_num,
 				path, strerror(errno));
 		return 0;
@@ -181,8 +162,7 @@ int mkhub_udp(int srv_num)
 	sockopt->name = SO_REUSEADDR;
 	memcpy(sockopt->value, &one, sizeof(int));
 	if (NgSendMsg(csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT, sockopt,
-			sizeof(sockopt_buf)) == -1)
-	{
+			sizeof(sockopt_buf)) == -1) {
 		Log(LOG_ERR, "%s(%d): Sockopt set failed : %s", __FUNCTION__, srv_num,
 				strerror(errno));
 		return 0;
@@ -191,8 +171,7 @@ int mkhub_udp(int srv_num)
 	sockopt->name = SO_REUSEPORT;
 	memcpy(sockopt->value, &one, sizeof(int));
 	if (NgSendMsg(csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT, sockopt,
-			sizeof(sockopt_buf)) == -1)
-	{
+			sizeof(sockopt_buf)) == -1) {
 		Log(LOG_ERR, "%s(%d): Sockopt set failed : %s", __FUNCTION__, srv_num,
 				strerror(errno));
 		return 0;
@@ -201,8 +180,8 @@ int mkhub_udp(int srv_num)
 	sprintf(path, "%s-upstream:", basename);
 
 	if (NgSendMsg(csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_BIND,
-			(struct sockaddr*) &server_cfg[srv_num].src, sizeof(struct sockaddr_in)) < 0)
-	{
+			(struct sockaddr*) &server_cfg[srv_num].src,
+			sizeof(struct sockaddr_in)) < 0) {
 		//NgAllocRecvMsg(csock, &m, pth);
 		Log(LOG_ERR, "%s(%d): BIND FAILED %s", __FUNCTION__, srv_num,
 				strerror(errno));
@@ -211,23 +190,18 @@ int mkhub_udp(int srv_num)
 	}
 	Log(LOG_NOTICE,
 			"%s(%d): Created hub for mcast = %s name = %s server = %s:%d",
-			__FUNCTION__, srv_num,
-			src,
-			server_cfg[srv_num].name,
-			dst,
+			__FUNCTION__, srv_num, src, server_cfg[srv_num].name, dst,
 			ntohs(server_cfg[srv_num].dst.sin_port));
 	return 1;
 }
 
-int add_mgroup(int srv_num)
-{
+int add_mgroup(int srv_num) {
 
 	/*
 	 setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
 
 	 */
-	union
-	{
+	union {
 		u_char buf[sizeof(struct ng_ksocket_sockopt) + sizeof(struct ip_mreq)];
 		struct ng_ksocket_sockopt sockopt;
 	} sockopt_buf;
@@ -251,35 +225,30 @@ int add_mgroup(int srv_num)
 	memcpy(sockopt->value, &ip_mreq, sizeof(ip_mreq));
 
 	if (NgSendMsg(csock, servsock, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
-			sockopt, sizeof(sockopt_buf)) < 0)
-	{
-		Log(LOG_ERR, "%s(%d): Failed ADD MEMBERSHIP %s to %s: %s",
-				__FUNCTION__, srv_num, servsock,
-				src, strerror(errno));
+			sockopt, sizeof(sockopt_buf)) < 0) {
+		Log(LOG_ERR, "%s(%d): Failed ADD MEMBERSHIP %s to %s: %s", __FUNCTION__,
+				srv_num, servsock, src, strerror(errno));
 		Log(LOG_ERR,
 				"%s(%d): ip_mreq.imr_multiaddr.s_addr = %s ip_mreq.imr_interface.s_addr=%s",
-				__FUNCTION__, srv_num,
-				src,
+				__FUNCTION__, srv_num, src,
 				inet_ntoa(server_cfg[srv_num].mifip));
 		return EXIT_FAILURE;
 	}
-	Log(LOG_NOTICE, "%s(%d): Register in mgroup = %s success",
-			__FUNCTION__, srv_num, src);
+	Log(LOG_NOTICE, "%s(%d): Register in mgroup = %s success", __FUNCTION__,
+			srv_num, src);
 	return EXIT_SUCCESS;
 }
 
 /*
  DROP MULTICAST GROUP MEMBERSHIP
  */
-int drop_mgroup(int srv_num)
-{
+int drop_mgroup(int srv_num) {
 
 	/*
 	 setsockopt(s, IPPROTO_IP, IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq));
 
 	 */
-	union
-	{
+	union {
 		u_char buf[sizeof(struct ng_ksocket_sockopt) + sizeof(struct ip_mreq)];
 		struct ng_ksocket_sockopt sockopt;
 	} sockopt_buf;
@@ -308,11 +277,10 @@ int drop_mgroup(int srv_num)
 	memcpy(sockopt->value, &ip_mreq, sizeof(ip_mreq));
 
 	if (NgSendMsg(csock, servsock, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
-			sockopt, sizeof(sockopt_buf)) < 0)
-	{
+			sockopt, sizeof(sockopt_buf)) < 0) {
 
-		Log(LOG_ERR, "%s(%d): Failed DROP MEMBERSHIP to %s: %s",
-				__FUNCTION__, srv_num, servsock, strerror(errno));
+		Log(LOG_ERR, "%s(%d): Failed DROP MEMBERSHIP to %s: %s", __FUNCTION__,
+				srv_num, servsock, strerror(errno));
 
 		Log(LOG_ERR,
 				"%s(%d): ip_mreq.imr_multiaddr.s_addr = %s ip_mreq.imr_interface.s_addr = %s",
@@ -322,9 +290,8 @@ int drop_mgroup(int srv_num)
 		return EXIT_FAILURE;
 	}
 
-	Log(LOG_NOTICE,
-			"%s(%d): DROP MEMBERSHIP FOR GROUP = %s success", __FUNCTION__, srv_num,
-			src);
+	Log(LOG_NOTICE, "%s(%d): DROP MEMBERSHIP FOR GROUP = %s success",
+			__FUNCTION__, srv_num, src);
 
 	return EXIT_SUCCESS;
 }

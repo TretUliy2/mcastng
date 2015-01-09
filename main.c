@@ -30,7 +30,6 @@
 #include	<pthread.h>
 #include	"ng-r.h"
 
-
 #define		VERSION	"0.0.1b $Rev: 327 $"
 #define		LST		64
 #define		PIDFILE	"/var/run/mcastng.pid"
@@ -84,13 +83,12 @@ u_int32_t tokens[MAX_SERVERS];
  */
 
 // Main Program
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
 	extern int csock, dsock;
 	const char *cfgfile;
 	char buf[BUF_LEN], name[BUF_LEN];
 	char path[NG_PATHSIZ];
-	int cfgflag, debug,  nflag, dflag, iuflag, ihtflag, ohtflag, ouflag, iuiflag;
+	int cfgflag, debug, nflag, dflag, iuflag, ihtflag, ohtflag, ouflag, iuiflag;
 	int ch, err, i;
 	int cmonsock, dmonsock;
 	char pth[NG_PATHSIZ];
@@ -107,15 +105,12 @@ int main(int argc, char **argv)
 	logfile = LOGFILE;
 	cfgfile = NULL;
 
-	if (argc < 2)
-	{
+	if (argc < 2) {
 		usage(argv[0]);
 	}
 
-	while ((ch = getopt(argc, argv, "c:dvb?")) != -1)
-	{
-		switch (ch)
-		{
+	while ((ch = getopt(argc, argv, "c:dvb?")) != -1) {
+		switch (ch) {
 		case 'v':
 			printf("%s: Version: %s\n", __FUNCTION__, VERSION);
 			exit(EXIT_FAILURE);
@@ -144,12 +139,9 @@ int main(int argc, char **argv)
 	// Checking if -c command line key defined
 	if (cfgflag == 0)
 		cfgfile = CFG_PATH;
-	if (config(cfgfile) < 0)
-	{
-		if (debug == 1)
-		{
-			fprintf(stderr, "%s: print config\n",
-					__FUNCTION__);
+	if (config(cfgfile) < 0) {
+		if (debug == 1) {
+			fprintf(stderr, "%s: print config\n", __FUNCTION__);
 		}
 		fprintf(stderr, "error: parsing config file failed so exit\n");
 		exit(EXIT_FAILURE);
@@ -157,8 +149,7 @@ int main(int argc, char **argv)
 
 	//print_config();
 
-	if (dflag == 1)
-	{
+	if (dflag == 1) {
 		daemonize();
 	}
 
@@ -168,7 +159,6 @@ int main(int argc, char **argv)
 	sprintf(name, "mcastng%d", getpid());
 	if (debug == 1)
 		NgSetDebug(4);
-
 
 	if (debug == 1)
 		Log(LOG_DEBUG, "main(): NgSetErrLog done");
@@ -197,32 +187,26 @@ int main(int argc, char **argv)
 	if (debug == 1)
 		Log(LOG_DEBUG, "%s: signals done", __FUNCTION__);
 
-	if (NgMkSockNode(name, &csock, &dsock) < 0)
-	{
-		Log(LOG_ERR, "%s: Creation of Ngsocket Failed: %s",
-				__FUNCTION__, strerror(errno));
+	if (NgMkSockNode(name, &csock, &dsock) < 0) {
+		Log(LOG_ERR, "%s: Creation of Ngsocket Failed: %s", __FUNCTION__,
+				strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 
-
 	// First shutdown all hubs just in case it was created previously
-	for (i = 0; i < srv_count; i++)
-	{
+	for (i = 0; i < srv_count; i++) {
 		sprintf(path, "%s:", server_cfg[i].name);
 		if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE, NGM_SHUTDOWN, NULL, 0)
-				< 0 && errno != ENOENT)
-		{
-			Log(LOG_ERR, "%s: Error shutdowning %s: %s", path,
-					__FUNCTION__, strerror(errno));
+				< 0 && errno != ENOENT) {
+			Log(LOG_ERR, "%s: Error shutdowning %s: %s", path, __FUNCTION__,
+					strerror(errno));
 		}
 	}
 
-	for (i = 0; i < srv_count; i++)
-	{
-		if (mkhub_udp(i) == 0)
-		{
-			Log(LOG_ERR, "%s: mkhub function died : %s",
-					__FUNCTION__, strerror(errno));
+	for (i = 0; i < srv_count; i++) {
+		if (mkhub_udp(i) == 0) {
+			Log(LOG_ERR, "%s: mkhub function died : %s", __FUNCTION__,
+					strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -233,7 +217,7 @@ int main(int argc, char **argv)
 	main_thread = pthread_self();
 
 	// Starting Http servers
-	err = pthread_create(&threads[thr], NULL, (void *) mkserver_http, NULL );
+	err = pthread_create(&threads[thr], NULL, (void *) mkserver_http, NULL);
 	if (err != 0)
 		Log(LOG_ERR, "%s: Failed to create thread %d: %s", __FUNCTION__, i,
 				strerror(err));
@@ -244,17 +228,14 @@ int main(int argc, char **argv)
 	 memset(tmp_clients, 0, sizeof(tmp_clints));
 	 */
 	// Create separate netgraph socket to do the job
-	if (NgMkSockNode(pth, &cmonsock, &dmonsock) < 0)
-	{
-		Log(LOG_ERR, "%s: Can`t create Netgraph monsock : %s",
-				__FUNCTION__, strerror(errno));
+	if (NgMkSockNode(pth, &cmonsock, &dmonsock) < 0) {
+		Log(LOG_ERR, "%s: Can`t create Netgraph monsock : %s", __FUNCTION__,
+				strerror(errno));
 		return 0;
 	}
 
-	for (;;)
-	{
-		for (i = 0; i < srv_count; i++ )
-		{
+	for (;;) {
+		for (i = 0; i < srv_count; i++) {
 			check_and_clear(i, cmonsock);
 		}
 		sleep(10);
@@ -263,23 +244,17 @@ int main(int argc, char **argv)
 	return EXIT_SUCCESS;
 }
 
-void exit_nice(void)
-{
+void exit_nice(void) {
 	int err, i;
 
-	for (i = 0; i < thr; i++)
-	{
+	for (i = 0; i < thr; i++) {
 		err = pthread_cancel(threads[i]);
-		if (err != 0)
-		{
-			Log(LOG_ERR,
-					"exit_nice(): Error occured while pthread_cancel: %s",
+		if (err != 0) {
+			Log(LOG_ERR, "exit_nice(): Error occured while pthread_cancel: %s",
 					strerror(err));
-		}
-		else
-		{
-			Log(LOG_NOTICE,
-					"exit_nice(): Thread thread[%d] closed successful", i);
+		} else {
+			Log(LOG_NOTICE, "exit_nice(): Thread thread[%d] closed successful",
+					i);
 		}
 	}
 	exit(EXIT_FAILURE);
@@ -288,10 +263,8 @@ void exit_nice(void)
 /*
  Subs to handle signals
  */
-void signal_handler(int sig)
-{
-	switch (sig)
-	{
+void signal_handler(int sig) {
+	switch (sig) {
 	case SIGINT:
 		Log(LOG_INFO, "%s: Caught SIGINT shutting down", __FUNCTION__);
 		shut_fanout();
@@ -311,12 +284,12 @@ void signal_handler(int sig)
 		exit_nice();
 		break;
 	case SIGUSR1:
-		Log(LOG_INFO,
-				"%s: Caught SIGUSR1 calling check_and_clear()", __FUNCTION__);
+		Log(LOG_INFO, "%s: Caught SIGUSR1 calling check_and_clear()",
+				__FUNCTION__);
 		break;
 	default:
-		Log(LOG_INFO, "%s: %s signal catched closing all",
-				__FUNCTION__, strsignal(sig));
+		Log(LOG_INFO, "%s: %s signal catched closing all", __FUNCTION__,
+				strsignal(sig));
 		shut_fanout();
 		unlink(PIDFILE);
 		exit_nice();
@@ -327,19 +300,17 @@ void signal_handler(int sig)
 
 /* Get peer name to define is ksocket connected to client or not
  */
-int check_and_clear(int srv_num, int cmonsock)
-{
+int check_and_clear(int srv_num, int cmonsock) {
 	/*
 	 
 	 Goal of this function is to find and shutdown nodes that don`t have
 	 connected clients, for that specific hub the srv_num variable is 
 	 to determine which hub we should examine (server_cfg[srv_num].)
-	
+
 	 */
 
 	// hubXXX - listhooks than for each hook getpeername
-	union
-	{
+	union {
 		u_char buf[sizeof(struct ng_mesg) + sizeof(struct sockaddr)];
 		struct ng_mesg reply;
 	} ugetsas;
@@ -353,7 +324,6 @@ int check_and_clear(int srv_num, int cmonsock)
 	uint32_t token;
 	resp = NULL;
 
-
 	memset(&ugetsas, 0, sizeof(ugetsas));
 	memset(pth, 0, sizeof(pth));
 	memset(hub, 0, sizeof(hub));
@@ -362,8 +332,7 @@ int check_and_clear(int srv_num, int cmonsock)
 	// Get hooklist from hub
 	token = NgSendMsg(cmonsock, hub, NGM_GENERIC_COOKIE, NGM_LISTHOOKS, NULL,
 			0);
-	if ((int) token < 0)
-	{
+	if ((int) token < 0) {
 		Log(LOG_ERR, "%s(%d): Filed to get hooklist from node %s: %s",
 				__FUNCTION__, srv_num, server_cfg[srv_num].name,
 				strerror(errno));
@@ -371,15 +340,12 @@ int check_and_clear(int srv_num, int cmonsock)
 	}
 
 	// Receiving node_list
-	do
-	{
-		if (resp != NULL )
-		{
+	do {
+		if (resp != NULL) {
 			free(resp);
 		}
-		
-		if (NgAllocRecvMsg(cmonsock, &resp, NULL ) < 0)
-		{
+
+		if (NgAllocRecvMsg(cmonsock, &resp, NULL) < 0) {
 			Log(LOG_ERR, "%s(%d): Failed to receive hooklist from hub: %s",
 					__FUNCTION__, srv_num, strerror(errno));
 			exit_nice();
@@ -392,45 +358,33 @@ int check_and_clear(int srv_num, int cmonsock)
 	c_count = 0;
 	bzero(peername, sizeof(peername));
 
-	if (ninfo->hooks > 0)
-	{
-		for (i = 0; (u_int32_t) i < ninfo->hooks; i++)
-		{
+	if (ninfo->hooks > 0) {
+		for (i = 0; (u_int32_t) i < ninfo->hooks; i++) {
 			struct nodeinfo * const peer = &hlist->link[i].nodeinfo;
 			char idbuf[NG_PATHSIZ];
 
-			if (!*peer->name)
-			{
+			if (!*peer->name) {
 				snprintf(peername, strlen(UNNAMED) + 1, "%s", UNNAMED);
-			}
-			else 
-			{
+			} else {
 				snprintf(peername, strlen(peer->name) + 1, "%s", peer->name);
 			}
 
 			snprintf(idbuf, sizeof(idbuf), "[%08x]:", peer->id);
 			if ((strcmp(peer->type, "ksocket") == 0)
-					&& (strcmp(peername, UNNAMED) == 0))
-			{
+					&& (strcmp(peername, UNNAMED) == 0)) {
 				c_count++;
 				token = NgSendMsg(cmonsock, idbuf, NGM_KSOCKET_COOKIE,
 						NGM_KSOCKET_GETPEERNAME, NULL, 0);
-				if ((int) token == -1)
-				{
-					if (errno == ENOTCONN)
-					{
+				if ((int) token == -1) {
+					if (errno == ENOTCONN) {
 						Log(LOG_INFO,
 								"%s(%d): Socket not connected, node: %s will be shutdown",
 								__FUNCTION__, srv_num, pth);
 						shut_node(idbuf);
-					}
-					else if (errno == ENOENT)
-					{
+					} else if (errno == ENOENT) {
 						Log(LOG_NOTICE, "%s(%d): Node already closed %s",
 								__FUNCTION__, srv_num, pth);
-					}
-					else
-					{
+					} else {
 						Log(LOG_ERR,
 								"%s(%d): An error has occured while getpeername from node: %s, %s",
 								__FUNCTION__, srv_num, pth, strerror(errno));
@@ -438,43 +392,35 @@ int check_and_clear(int srv_num, int cmonsock)
 				}
 			}
 		}
-		if (c_count == 0 && server_cfg[srv_num].streaming == 1)
-		{
+		if (c_count == 0 && server_cfg[srv_num].streaming == 1) {
 			Log(LOG_NOTICE,
 					"%s(%d): no clients found in %s dropping group membership",
 					__FUNCTION__, srv_num, hub);
 			Log(LOG_NOTICE, "%s(%d): streaming[%d] = %d, c_count = %d",
-					__FUNCTION__, srv_num, srv_num, server_cfg[srv_num].streaming,
-					c_count);
+					__FUNCTION__, srv_num, srv_num,
+					server_cfg[srv_num].streaming, c_count);
 			drop_mgroup(srv_num);
 			Log(LOG_INFO, "%s(%d): trying to lock data mutex", __FUNCTION__,
 					srv_num);
 
 			pthread_mutex_lock(&mutex);
-			Log(LOG_INFO, "%s(%d): data mutex locked", __FUNCTION__,
-					srv_num);
+			Log(LOG_INFO, "%s(%d): data mutex locked", __FUNCTION__, srv_num);
 			server_cfg[srv_num].streaming = 0;
 			pthread_mutex_unlock(&mutex);
-			Log(LOG_INFO, "%s(%d): data mutex unlocked", __FUNCTION__,
-					srv_num);
+			Log(LOG_INFO, "%s(%d): data mutex unlocked", __FUNCTION__, srv_num);
 		}
-	}
-	else
-	{
+	} else {
 		Log(LOG_NOTICE,
 				"%s(%d): There is no hooks connected to hub it`s strange ",
 				__FUNCTION__, srv_num);
 	}
 
-
 	free(resp);
 	return EXIT_SUCCESS;
 }
 // Shutdown clients
-int shut_clients(int srv_num, int cmonsock)
-{
-	union
-	{
+int shut_clients(int srv_num, int cmonsock) {
+	union {
 		u_char buf[sizeof(struct ng_mesg) + sizeof(struct sockaddr)];
 		struct ng_mesg reply;
 	} ugetsas;
@@ -487,7 +433,6 @@ int shut_clients(int srv_num, int cmonsock)
 	uint32_t token;
 	resp = NULL;
 
-
 	memset(&ugetsas, 0, sizeof(ugetsas));
 	memset(pth, 0, sizeof(pth));
 	memset(hub, 0, sizeof(hub));
@@ -498,57 +443,45 @@ int shut_clients(int srv_num, int cmonsock)
 
 	token = NgSendMsg(cmonsock, hub, NGM_GENERIC_COOKIE, NGM_LISTHOOKS, NULL,
 			0);
-	if ((int) token < 0)
-	{
-		Log(LOG_ERR,
-				"%s(%d): Filed to get hooklist from node %s: %s",
-				__FUNCTION__, srv_num, server_cfg[srv_num].name, strerror(errno));
+	if ((int) token < 0) {
+		Log(LOG_ERR, "%s(%d): Filed to get hooklist from node %s: %s",
+				__FUNCTION__, srv_num, server_cfg[srv_num].name,
+				strerror(errno));
 		return EXIT_FAILURE;
 	}
 	// Receiving node_list
-	do
-	{
-		if (resp != NULL )
-		{
+	do {
+		if (resp != NULL) {
 			free(resp);
 		}
-		if (NgAllocRecvMsg(cmonsock, &resp, NULL ) < 0)
-		{
-			Log(LOG_ERR,
-					"%s(%d): Failed to receive hooklist from hub: %s",
+		if (NgAllocRecvMsg(cmonsock, &resp, NULL) < 0) {
+			Log(LOG_ERR, "%s(%d): Failed to receive hooklist from hub: %s",
 					__FUNCTION__, srv_num, strerror(errno));
 			return EXIT_FAILURE;
 		}
 	} while (resp->header.token != token);
 	hlist = (struct hooklist *) resp->data;
 	ninfo = (struct nodeinfo *) &hlist->nodeinfo;
-	if (ninfo->hooks > 0)
-	{
-		for (i = 0; (u_int32_t) i < ninfo->hooks; i++)
-		{
+	if (ninfo->hooks > 0) {
+		for (i = 0; (u_int32_t) i < ninfo->hooks; i++) {
 			struct nodeinfo * const peer = &hlist->link[i].nodeinfo;
 			char idbuf[NG_PATHSIZ];
 
-			if (!*peer->name)
-			{
+			if (!*peer->name) {
 				//snprintf(peer->name, sizeof(peer->name), "%s", UNNAMED);
 				snprintf(peername, strlen(UNNAMED), "%s", UNNAMED);
-				Log(LOG_DEBUG, "%s(%d): peername = %s", 
-					__FUNCTION__, srv_num, peername);
-			}
-			else 
-			{
+				Log(LOG_DEBUG, "%s(%d): peername = %s", __FUNCTION__, srv_num,
+						peername);
+			} else {
 				snprintf(peername, strlen(peer->name), "%s", peer->name);
-				Log(LOG_DEBUG, "%s(%d): peername = %s", 
-					__FUNCTION__, srv_num, peername);
+				Log(LOG_DEBUG, "%s(%d): peername = %s", __FUNCTION__, srv_num,
+						peername);
 			}
-			Log(LOG_NOTICE,
-					"%s(%d): number of connected hooks = %d", __FUNCTION__, srv_num,
-					ninfo->hooks);
+			Log(LOG_NOTICE, "%s(%d): number of connected hooks = %d",
+					__FUNCTION__, srv_num, ninfo->hooks);
 			snprintf(idbuf, sizeof(idbuf), "[%08x]:", peer->id);
 			if ((strcmp(peer->type, "ksocket") == 0)
-					&& (strcmp(peername, UNNAMED) == 0))
-			{
+					&& (strcmp(peername, UNNAMED) == 0)) {
 				Log(LOG_NOTICE,
 						"%s(%d): peer->name = %s peer->type = %s, peer->id = [%08x]:",
 						__FUNCTION__, srv_num, peername, peer->type, peer->id);
@@ -561,18 +494,15 @@ int shut_clients(int srv_num, int cmonsock)
 	return (EXIT_SUCCESS);
 }
 // Shutdown hubs
-void shut_fanout(void)
-{
+void shut_fanout(void) {
 	char path[BUF_LEN];
 	int i;
 	memset(path, 0, sizeof(path));
-	for (i = 0; i < srv_count; i++)
-	{
+	for (i = 0; i < srv_count; i++) {
 		shut_clients(i, csock);
 		sprintf(path, "%s:", server_cfg[i].name);
 		if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE, NGM_SHUTDOWN, NULL, 0)
-				< 0)
-		{
+				< 0) {
 			Log(LOG_ERR, "%s(): Error shutdowning %s: %s", __FUNCTION__, path,
 					strerror(errno));
 			exit_nice();
@@ -582,32 +512,27 @@ void shut_fanout(void)
 }
 
 // Shutdown Single node
-int shut_node(char path[NG_PATHSIZ])
-{
+int shut_node(char path[NG_PATHSIZ]) {
 	char name[NG_PATHSIZ];
 	unsigned int i = 0;
 	memset(name, 0, sizeof(name));
-	while (i < strlen(path))
-	{
+	while (i < strlen(path)) {
 		name[i] = path[i];
 		i++;
 	}
 
-	if (name[strlen(name) - 1] != ':')
-	{
+	if (name[strlen(name) - 1] != ':') {
 		sprintf(name, "%s:", name);
 	}
-	if (NgSendMsg(csock, name, NGM_GENERIC_COOKIE, NGM_SHUTDOWN, NULL, 0) < 0)
-	{
-		Log(LOG_INFO, "%s(): Error shutdowning fanout: %s\n",
-				__FUNCTION__, strerror(errno));
-		return(0);
+	if (NgSendMsg(csock, name, NGM_GENERIC_COOKIE, NGM_SHUTDOWN, NULL, 0) < 0) {
+		Log(LOG_INFO, "%s(): Error shutdowning fanout: %s\n", __FUNCTION__,
+				strerror(errno));
+		return (0);
 	}
-	return(1);
+	return (1);
 }
 // USAGE Subroutine
-void usage(const char *progname)
-{
+void usage(const char *progname) {
 	printf(
 			"\
 IPTV http/multicast relay, version %s\n\
@@ -626,8 +551,7 @@ Example:\n\n\
 	exit(EXIT_FAILURE);
 }
 // Daemonize Function
-void daemonize(void)
-{
+void daemonize(void) {
 
 	pid_t pid, sid;
 	FILE *fp;
@@ -636,46 +560,41 @@ void daemonize(void)
 	pidfile = PIDFILE;
 	pid = fork();
 
-	if (pid < 0)
-	{
-		fprintf(stderr, "%s(): Fork Filed: %s\n",
-				__FUNCTION__, strerror(errno));
+	if (pid < 0) {
+		fprintf(stderr, "%s(): Fork Filed: %s\n", __FUNCTION__,
+				strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 	// If parent process - close
-	if (pid > 0)
-	{
+	if (pid > 0) {
 		//Log(LOG_NOTICE, "%s(): Closing parent", __FUNCTION__);
 		exit(EXIT_SUCCESS);
 	}
 	umask(0);
 	// Create SID for the child process
 	sid = setsid();
-	if (sid < 0)
-	{
-		fprintf(stderr, "%s(): setsid failed: %s\n", __FUNCTION__, strerror(errno));
+	if (sid < 0) {
+		fprintf(stderr, "%s(): setsid failed: %s\n", __FUNCTION__,
+				strerror(errno));
 		exit(EXIT_FAILURE);
 	}
-	if ((fp = fopen(pidfile, "w")) == NULL )
-	{
-		Log(LOG_ERR, "%s(): Can`t write pid file: %s",
-				__FUNCTION__, strerror(errno));
-	}
-	else
-	{
+	if ((fp = fopen(pidfile, "w")) == NULL) {
+		Log(LOG_ERR, "%s(): Can`t write pid file: %s", __FUNCTION__,
+				strerror(errno));
+	} else {
 		fprintf(fp, "%d", getpid());
 		fclose(fp);
 	}
-	if ((chdir("/")) < 0)
-	{
-		fprintf(stderr, "%s(): chdir failed: %s\n", __FUNCTION__, strerror(errno));
+	if ((chdir("/")) < 0) {
+		fprintf(stderr, "%s(): chdir failed: %s\n", __FUNCTION__,
+				strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 
 	/*
-	Log(LOG_NOTICE, "%s(): Starting relaying-ng pid = %d sid = %d",
-			__FUNCTION__, getpid(), sid);
-	*/
+	 Log(LOG_NOTICE, "%s(): Starting relaying-ng pid = %d sid = %d",
+	 __FUNCTION__, getpid(), sid);
+	 */
 
 	/* close out the standart file descriptors */
 	close(STDIN_FILENO);
@@ -687,23 +606,20 @@ void daemonize(void)
 }
 // Helper function you can use:
 
-void print_config(void)
-{
+void print_config(void) {
 	int i;
 	char src_ip[IP_LEN], dst_ip[IP_LEN];
 
-
-	for (i = 0; i < srv_count; i++)
-	{
+	for (i = 0; i < srv_count; i++) {
 		memset(src_ip, 0, sizeof(src_ip));
 		memset(dst_ip, 0, sizeof(dst_ip));
 
 		strcpy(src_ip, inet_ntoa(server_cfg[i].src.sin_addr));
 		strcpy(dst_ip, inet_ntoa(server_cfg[i].dst.sin_addr));
-		
-		Log(LOG_DEBUG, "%s: server_cfg[%d] src.ip = %s src.port = %d dst.ip = %s dst_port = %d",
-				__FUNCTION__, i,
-				src_ip, ntohs(server_cfg[i].src.sin_port),
+
+		Log(LOG_DEBUG,
+				"%s: server_cfg[%d] src.ip = %s src.port = %d dst.ip = %s dst_port = %d",
+				__FUNCTION__, i, src_ip, ntohs(server_cfg[i].src.sin_port),
 				dst_ip, ntohs(server_cfg[i].dst.sin_port));
 	}
 }

@@ -13,8 +13,7 @@ extern int daemonized;
 
 void Log(int log, const char *fmt, ...);
 
-void Log(int log, const char *fmt, ...)
-{
+void Log(int log, const char *fmt, ...) {
 	va_list args;
 	char buf[200];
 
@@ -23,16 +22,12 @@ void Log(int log, const char *fmt, ...)
 	va_end(args);
 	//snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf));
 	//Log(LG_ERR, ("%s", buf));
-	if (!log)
-	{
+	if (!log) {
 		log = LOG_NOTICE;
 	}
-	if (daemonized == 1)
-	{
+	if (daemonized == 1) {
 		syslog(log, "%s", buf);
-	}
-	else
-	{
+	} else {
 		fprintf(stderr, "%s\n", buf);
 	}
 
