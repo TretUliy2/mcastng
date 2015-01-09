@@ -39,6 +39,116 @@ void send_accept(int srv_csock, int srv_num);
 void * mkserver_http(void);
 u_int32_t parse_pth(char pth[NG_PATHSIZ]);
 
+/*
+ *
+ * */
+
+int create_listening_socket(int i, int srv_csock) {
+
+	char path[NG_PATHSIZ], ourhook[NG_HOOKSIZ];
+	struct ngm_mkpeer mkp;
+	union {
+		u_char buf[sizeof(struct ng_ksocket_sockopt) + sizeof(int)];
+		struct ng_ksocket_sockopt sockopt;
+	} sockopt_buf;
+	struct ng_ksocket_sockopt * const sockopt = &sockopt_buf.sockopt;
+	int lst, i, err, j, yes;
+	uint32_t token;
+	const char *basename;
+	yes = 1;
+
+	/*
+	 * Which resource thread uses
+	 if (getrusage(RUSAGE_SELF, &rusage) < 0)
+	 {
+	 Log(LOG_ERR, "%s(%d): getrusage  error: %s", __FUNCTION__, i,
+	 strerror(errno));
+	 }
+	 else
+	 {
+	 Log(LOG_NOTICE,
+	 "%s(%d): ru_maxrss = %ld , ru_ixrss = %ld , ru_idrss = %ld , ru_isrss = %ld",
+	 __FUNCTION__, i, rusage.ru_maxrss, rusage.ru_ixrss, rusage.ru_idrss,
+	 rusage.ru_isrss);
+	 }
+	 */
+
+	// i - server number, j - client counter to give unique names to hooks and nodes
+	// mkpeer . ksocket listen/stream/tcp
+	basename = server_cfg[i].name;
+
+	sprintf(path, ".");
+	sprintf(ourhook, "%s%d", "listen", i);
+	snprintf(mkp.type, sizeof(mkp.type), "ksocket");
+	snprintf(mkp.ourhook, sizeof(mkp.ourhook), "%s", ourhook);
+	snprintf(mkp.peerhook, sizeof(mkp.peerhook), "inet/stream/tcp");
+
+	if (NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_MKPEER, &mkp,
+			sizeof(mkp)) < 0) {
+		Log(LOG_ERR,
+				"%s(%d): Creating and connecting node path = %s error: %s",
+				__FUNCTION__, i, path, strerror(errno));
+		return NULL;
+	}
+	// name    .:listen hub0-servsock
+	sprintf(path, ".:%s", ourhook);
+	sprintf(name, "%s%s", basename, SERVSOCK);
+	if (NgNameNode(srv_csock, path, "%s", name) < 0) {
+		Log(LOG_ERR, "%s(%d): Naming Node failed at path: %s : %s",
+				__FUNCTION__, i, path, strerror(errno));
+		return NULL;
+	}
+	// setsockopt resolve TIME_WAIT problem
+	// setsockopt(fd,SOL_SOCKET,SO_REUSEPORT,&one,sizeof(int)) < 0)
+	memset(&sockopt_buf, 0, sizeof(sockopt_buf));
+
+	sockopt->level = SOL_SOCKET;
+	sockopt->name = SO_REUSEPORT;
+	memcpy(sockopt->value, &yes, sizeof(int));
+	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
+			sockopt, sizeof(sockopt_buf)) == -1) {
+		Log(LOG_ERR, "%s(%d): Sockopt set failed : %s", __FUNCTION__, i,
+				strerror(errno));
+		return NULL;
+	}
+	// msg servsock: bind inet/0.0.0.0:8080
+	sprintf(path, "%s%s:", server_cfg[i].name, SERVSOCK);
+
+	Log(LOG_NOTICE, "%s(%d): Trying to bind to interface %s:%d",
+			__FUNCTION__, i, inet_ntoa(server_cfg[i].dst.sin_addr),
+			ntohs(server_cfg[i].dst.sin_port));
+
+	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_BIND,
+			&server_cfg[i].dst, sizeof(struct sockaddr_in)) < 0) {
+		Log(LOG_ERR, "%s(%d): Can't bind on address: %s:%d err: %s",
+				__FUNCTION__, i, inet_ntoa(server_cfg[i].dst.sin_addr),
+				ntohs(server_cfg[i].dst.sin_port), strerror(errno));
+		return NULL;
+	}
+	//  msg servsock: listen 64
+	lst = LST;
+	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_LISTEN,
+			&lst, sizeof(lst)) < 0) {
+		Log(LOG_ERR, "%s(%d): msg servsock: listen 64 failed %s",
+				__FUNCTION__, i, strerror(errno));
+		return NULL;
+	}
+
+	Log(LOG_NOTICE, "%s(%d): Starting cycle %d of ACCEPT", __FUNCTION__, i,
+			i);
+	// msg servsock: accept
+	sprintf(path, "%s%s:", server_cfg[i].name, SERVSOCK);
+	// If not first connection - check and clear useless ksock nodes
+
+	token = NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE,
+			NGM_KSOCKET_ACCEPT, NULL, 0);
+	if ((int) token < 0 && errno != EINPROGRESS && errno != EALREADY) {
+		Log(LOG_ERR, "%s(%d): Accept Failed %s", __FUNCTION__, i,
+				strerror(errno));
+		return NULL;
+	}
+	tokens[i] = token;
+}
 /* Make http server to serve clients
  * */
 void * mkserver_http(void) {
@@ -51,34 +161,27 @@ void * mkserver_http(void) {
 	 msg servsock: accept
 	 */
 
-	struct ngm_mkpeer mkp;
+
 	struct ngm_connect con;
 	struct sockaddr_in addr;
 	struct ng_mesg *m;
 	struct connect connect;
 	struct rusage rusage;
-	char ng_stack[BUF_LEN], ourhook[NG_HOOKSIZ], pth[NG_PATHSIZ];
-	char path[NG_PATHSIZ], name[NG_NODESIZ];
-	int lst, i, err, j, yes;
+	char  pth[NG_PATHSIZ];
+	char  name[NG_NODESIZ];
+
 	int srv_csock, srv_dsock;
-	const char *basename;
-	u_int32_t token;
+
 	union {
 		u_char buf[sizeof(struct ng_mesg) + sizeof(struct sockaddr)];
 		struct ng_mesg reply;
 	} ugetsas;
-	union {
-		u_char buf[sizeof(struct ng_ksocket_sockopt) + sizeof(int)];
-		struct ng_ksocket_sockopt sockopt;
-	} sockopt_buf;
-	struct ng_ksocket_sockopt * const sockopt = &sockopt_buf.sockopt;
+
 
 	m = NULL;
-	err = j = 0;
-	yes = 1;
+
 	memset(&rusage, 0, sizeof(rusage));
 	memset(&ugetsas, 0, sizeof(ugetsas));
-	memset(ng_stack, 0, sizeof(ng_stack));
 
 	memset(pth, 0, sizeof(pth));
 	memset(&mkp, 0, sizeof(mkp));
@@ -100,98 +203,7 @@ void * mkserver_http(void) {
 	}
 	// For each server in config file we need to create listening socket
 	for (i = 0; i < srv_count; i++) {
-
-		/*
-		 * Which resource thread uses
-		 if (getrusage(RUSAGE_SELF, &rusage) < 0)
-		 {
-		 Log(LOG_ERR, "%s(%d): getrusage  error: %s", __FUNCTION__, i,
-		 strerror(errno));
-		 }
-		 else
-		 {
-		 Log(LOG_NOTICE,
-		 "%s(%d): ru_maxrss = %ld , ru_ixrss = %ld , ru_idrss = %ld , ru_isrss = %ld",
-		 __FUNCTION__, i, rusage.ru_maxrss, rusage.ru_ixrss, rusage.ru_idrss,
-		 rusage.ru_isrss);
-		 }
-		 */
-
-		// i - server number, j - client counter to give unique names to hooks and nodes
-		// mkpeer . ksocket listen/stream/tcp
-		basename = server_cfg[i].name;
-
-		sprintf(path, ".");
-		sprintf(ourhook, "%s%d", "listen", i);
-		snprintf(mkp.type, sizeof(mkp.type), "ksocket");
-		snprintf(mkp.ourhook, sizeof(mkp.ourhook), "%s", ourhook);
-		snprintf(mkp.peerhook, sizeof(mkp.peerhook), "inet/stream/tcp");
-
-		if (NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_MKPEER, &mkp,
-				sizeof(mkp)) < 0) {
-			Log(LOG_ERR,
-					"%s(%d): Creating and connecting node path = %s error: %s",
-					__FUNCTION__, i, path, strerror(errno));
-			return NULL;
-		}
-		// name    .:listen hub0-servsock
-		sprintf(path, ".:%s", ourhook);
-		sprintf(name, "%s%s", basename, SERVSOCK);
-		if (NgNameNode(srv_csock, path, "%s", name) < 0) {
-			Log(LOG_ERR, "%s(%d): Naming Node failed at path: %s : %s",
-					__FUNCTION__, i, path, strerror(errno));
-			return NULL;
-		}
-		// setsockopt resolve TIME_WAIT problem
-		// setsockopt(fd,SOL_SOCKET,SO_REUSEPORT,&one,sizeof(int)) < 0)
-		memset(&sockopt_buf, 0, sizeof(sockopt_buf));
-
-		sockopt->level = SOL_SOCKET;
-		sockopt->name = SO_REUSEPORT;
-		memcpy(sockopt->value, &yes, sizeof(int));
-		if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
-				sockopt, sizeof(sockopt_buf)) == -1) {
-			Log(LOG_ERR, "%s(%d): Sockopt set failed : %s", __FUNCTION__, i,
-					strerror(errno));
-			return NULL;
-		}
-		// msg servsock: bind inet/0.0.0.0:8080
-		sprintf(path, "%s%s:", server_cfg[i].name, SERVSOCK);
-
-		Log(LOG_NOTICE, "%s(%d): Trying to bind to interface %s:%d",
-				__FUNCTION__, i, inet_ntoa(server_cfg[i].dst.sin_addr),
-				ntohs(server_cfg[i].dst.sin_port));
-
-		if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_BIND,
-				&server_cfg[i].dst, sizeof(struct sockaddr_in)) < 0) {
-			Log(LOG_ERR, "%s(%d): Can't bind on address: %s:%d err: %s",
-					__FUNCTION__, i, inet_ntoa(server_cfg[i].dst.sin_addr),
-					ntohs(server_cfg[i].dst.sin_port), strerror(errno));
-			return NULL;
-		}
-		//  msg servsock: listen 64
-		lst = LST;
-		if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_LISTEN,
-				&lst, sizeof(lst)) < 0) {
-			Log(LOG_ERR, "%s(%d): msg servsock: listen 64 failed %s",
-					__FUNCTION__, i, strerror(errno));
-			return NULL;
-		}
-
-		Log(LOG_NOTICE, "%s(%d): Starting cycle %d of ACCEPT", __FUNCTION__, i,
-				i);
-		// msg servsock: accept
-		sprintf(path, "%s%s:", server_cfg[i].name, SERVSOCK);
-		// If not first connection - check and clear useless ksock nodes
-
-		token = NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE,
-				NGM_KSOCKET_ACCEPT, NULL, 0);
-		if ((int) token < 0 && errno != EINPROGRESS && errno != EALREADY) {
-			Log(LOG_ERR, "%s(%d): Accept Failed %s", __FUNCTION__, i,
-					strerror(errno));
-			return NULL;
-		}
-		tokens[i] = token;
+		create_listening_socket(i, srv_csock);
 	}
 
 	for (;;) {
