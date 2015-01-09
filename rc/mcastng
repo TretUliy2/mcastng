@@ -1,0 +1,32 @@
+#!/bin/sh
+
+# $FreeBSD: ports/net/relaying/files/relaying.in,v 1.3 2012/11/17 05:59:57 svnexp Exp $
+#
+# PROVIDE: mcastng
+# REQUIRE: LOGIN
+# KEYWORD: shutdown
+#
+# Add the following lines to /etc/rc.conf.local or /etc/rc.conf
+# to enable this service:
+#
+# mcastng_enable (bool):   Set to NO by default.
+#               Set it to YES to enable relaying.
+# mcastng_config (path):   Set to /usr/local/etc/mcastng.conf
+#               by default.
+#
+
+. /etc/rc.subr
+
+name="mcastng"
+rcvar=mcastng_enable
+
+command=/usr/local/bin/${name}
+
+load_rc_config $name
+
+: ${mcastng_enable="NO"}
+: ${mcastng_config="/usr/local/etc/mcastng.cfg"}
+
+command_args="-c $mcastng_config -b"
+
+run_rc_command "$1"
