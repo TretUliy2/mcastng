@@ -180,18 +180,14 @@ void * mkserver_http(void) {
 
 	m = NULL;
 
-	memset(&rusage, 0, sizeof(rusage));
 	memset(&ugetsas, 0, sizeof(ugetsas));
 
 	memset(pth, 0, sizeof(pth));
-	memset(&mkp, 0, sizeof(mkp));
 	memset(&con, 0, sizeof(con));
 
 	memset((char *) &addr, 0, sizeof(addr));
 
-	memset(path, 0, sizeof(path));
 	memset(name, 0, sizeof(name));
-	memset(ourhook, 0, sizeof(ourhook));
 
 	memset(tokens, 0, sizeof(tokens));
 	// Naming Control socket node
