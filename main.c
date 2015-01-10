@@ -333,15 +333,17 @@ int check_and_clear(int srv_num, int cmonsock) {
 	 */
 
 	// hubXXX - listhooks than for each hook getpeername
-	int i;
 	uint32_t sec_idx = 0;
-	uint32_t c_count;
+	uint32_t i, c_count;
 	client *tmp;
+
 	pthread_mutex_lock(&mutex);
-	for (i = 0; i < client_count; i++) {
-		if (check_dead(primary[i].node_id)) {
+	c_count = client_count;
+	for (i = 0; i < c_count; i++) {
+		if (client_dead(primary[i].node_id, cmonsock)) {
 			// Dead node detected
 			int srv_num = primary[i].srv_num;
+			client_count--;
 			if (--server_cfg[srv_num].c_count == 0) {
 				drop_mgroup(srv_num);
 			}
