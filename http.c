@@ -150,7 +150,7 @@ void * mkserver_http(void) {
 	struct sockaddr_in addr;
 	struct ng_mesg *m;
 	struct connect connect;
-	struct rusage rusage;
+	//struct rusage rusage;
 	char pth[NG_PATHSIZ];
 	char name[NG_NODESIZ];
 
