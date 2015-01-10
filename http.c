@@ -58,23 +58,6 @@ int create_listening_socket(int i, int srv_csock) {
 	const char *basename;
 	yes = 1;
 
-	/*
-	 * Which resource thread uses
-	 if (getrusage(RUSAGE_SELF, &rusage) < 0)
-	 {
-	 Log(LOG_ERR, "%s(%d): getrusage  error: %s", __FUNCTION__, i,
-	 strerror(errno));
-	 }
-	 else
-	 {
-	 Log(LOG_NOTICE,
-	 "%s(%d): ru_maxrss = %ld , ru_ixrss = %ld , ru_idrss = %ld , ru_isrss = %ld",
-	 __FUNCTION__, i, rusage.ru_maxrss, rusage.ru_ixrss, rusage.ru_idrss,
-	 rusage.ru_isrss);
-	 }
-	 */
-
-	// i - server number, j - client counter to give unique names to hooks and nodes
 	// mkpeer . ksocket listen/stream/tcp
 	basename = server_cfg[i].name;
 
