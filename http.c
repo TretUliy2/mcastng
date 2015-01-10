@@ -219,6 +219,13 @@ void * mkserver_http(void) {
 				"%s(%d): We have a new client connection node: %s streaming = %d",
 				__FUNCTION__, i, pth, server_cfg[i].streaming);
 
+		pthread_mutex_lock(&mutex);
+		server_cfg[i].c_count++;
+		primary[client_count].node_id = parse_pth(pth);
+		primary[client_count].srv_num = i;
+		client_count++;
+		pthread_mutex_unlock(&mutex);
+
 		if (server_cfg[i].streaming == 0) {
 			Log(LOG_NOTICE,
 					"%s(%d): no connected clients ADD GROUP MEMBERSHIP needed",
@@ -226,10 +233,6 @@ void * mkserver_http(void) {
 			if (add_mgroup(i) == 0) {
 				pthread_mutex_lock(&mutex);
 				server_cfg[i].streaming = 1;
-				server_cfg[i].c_count++;
-				primary[client_count].node_id = parse_pth(pth);
-				primary[client_count].srv_num = i;
-				client_count++;
 				pthread_mutex_unlock(&mutex);
 			} else {
 				Log(LOG_ERR,
