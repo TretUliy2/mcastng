@@ -46,7 +46,7 @@ void usage(const char *progname);
 void signal_handler(int sig);
 void exit_nice(void);
 void daemonize(void);
-int check_and_clear(int srv_num, int cmonsock);
+int check_and_clear(int cmonsock);
 int shut_clients(int srv_num, int cmonsock);
 int client_dead(int node, int cmonsock);
 int shut_node(char path[NG_PATHSIZ]);
@@ -230,9 +230,7 @@ int main(int argc, char **argv) {
 	}
 
 	for (;;) {
-		for (i = 0; i < srv_count; i++) {
-			check_and_clear(i, cmonsock);
-		}
+		check_and_clear(cmonsock);
 		sleep(10);
 	}
 
@@ -329,7 +327,7 @@ int client_dead(int node, int cmonsock) {
 }
 /* Get peer name to define is ksocket connected to client or not
  */
-int check_and_clear(int srv_num, int cmonsock) {
+int check_and_clear(int cmonsock) {
 	/*
 	 
 	 Goal of this function is to find and shutdown nodes that don`t have
