@@ -20,7 +20,6 @@
 
 extern int srv_count;
 extern pthread_mutex_t mutex;
-extern char http_replay[];
 extern u_int32_t tokens[MAX_SERVERS];
 // External functions
 extern void shut_fanout(void);
@@ -37,11 +36,15 @@ struct connect {
 int handle_client(int csock, int dsock, struct connect);
 void send_accept(int srv_csock, int srv_num);
 void * mkserver_http(void);
+int create_listening_socket(int i, int srv_csock);
 u_int32_t parse_pth(char pth[NG_PATHSIZ]);
 
 /*
  *
  * */
+
+char http_replay[] =
+		"HTTP/1.0 200 OK\r\nContent-type: application/octet-stream\r\nCache-Control: no-cache\r\n\r\n";
 
 int create_listening_socket(int i, int srv_csock) {
 
@@ -58,23 +61,6 @@ int create_listening_socket(int i, int srv_csock) {
 	const char *basename;
 	yes = 1;
 
-	/*
-	 * Which resource thread uses
-	 if (getrusage(RUSAGE_SELF, &rusage) < 0)
-	 {
-	 Log(LOG_ERR, "%s(%d): getrusage  error: %s", __FUNCTION__, i,
-	 strerror(errno));
-	 }
-	 else
-	 {
-	 Log(LOG_NOTICE,
-	 "%s(%d): ru_maxrss = %ld , ru_ixrss = %ld , ru_idrss = %ld , ru_isrss = %ld",
-	 __FUNCTION__, i, rusage.ru_maxrss, rusage.ru_ixrss, rusage.ru_idrss,
-	 rusage.ru_isrss);
-	 }
-	 */
-
-	// i - server number, j - client counter to give unique names to hooks and nodes
 	// mkpeer . ksocket listen/stream/tcp
 	basename = server_cfg[i].name;
 
@@ -165,7 +151,7 @@ void * mkserver_http(void) {
 	struct sockaddr_in addr;
 	struct ng_mesg *m;
 	struct connect connect;
-	struct rusage rusage;
+	//struct rusage rusage;
 	char pth[NG_PATHSIZ];
 	char name[NG_NODESIZ];
 
