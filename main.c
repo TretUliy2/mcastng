@@ -30,7 +30,7 @@
 #include	<pthread.h>
 #include	"ng-r.h"
 
-#define		VERSION	"0.0.1b $Rev: 327 $"
+#define		VERSION	"0.0.10"
 #define		LST		64
 #define		PIDFILE	"/var/run/mcastng.pid"
 
@@ -41,7 +41,6 @@
 #define		Log_IDENT	"mcastng"
 
 // Internal Functions
-
 void shut_fanout(void);
 void usage(const char *progname);
 void signal_handler(int sig);
@@ -61,26 +60,13 @@ extern void Log(int log, const char *fmt, ...);
 
 // Global Variables
 const char *logfile;
-int srv_count, thr;
+int srv_count, thr;  // Global server counter
 int daemonized;
-u_int32_t client_count;
+u_int32_t client_count; // Global client counter
 pthread_t threads[MAX_THREADS], main_thread;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-char http_replay[] =
-		"HTTP/1.0 200 OK\r\nContent-type: application/octet-stream\r\nCache-Control: no-cache\r\n\r\n";
 u_int32_t tokens[MAX_SERVERS];
 
-/*  Global arrays  to store ip`s and ports of input and output sockets
- *  I know this is bullshit but have no clue how to do it in another way
- *  inp_port - input (means multicast) port
- *  inp_ip - input multicast address (from 224.0.0.0/4 range)
- *  outp_ip, outp_port - ip and port  of listening for http connections ng_ksocket node
- *  the index in this arrays is the server number
- *
- *  server consist of uplink (ng_ksocket dgram/udp), ng_hub and listening for http connections
- *  ng_ksocket node (stream/tcp)
- *  mifip - ip address of interface which have multicast senders (where to listen multicast traffic)
- */
 
 // Main Program
 int main(int argc, char **argv) {
@@ -95,7 +81,9 @@ int main(int argc, char **argv) {
 
 	// Start Logging
 	openlog(Log_IDENT, 0, LOG_USER);
-	memset(clients, 0, sizeof(clients));
+
+	memset(clients_primary, 0, sizeof(clients_primary));
+	memset(clients_secondary, 0, sizeof(clients_secondary));
 
 	cfgflag = debug = dflag = iuflag = nflag = ihtflag = ohtflag = ouflag =
 			iuiflag = 0;
@@ -210,7 +198,7 @@ int main(int argc, char **argv) {
 			exit(EXIT_FAILURE);
 		}
 	}
-	Log(LOG_NOTICE, "main(): All hubs created");
+	Log(LOG_NOTICE, "%s() All hubs created", __FUNCTION__);
 	close(csock);
 	close(dsock);
 
@@ -298,18 +286,58 @@ void signal_handler(int sig) {
 
 }
 
+/* Get peer name to find out is this node still connected to client or not
+ */
+int client_dead(int node, int cmonsock) {
+	/* if client node given by idbuf in [0x0112]: format
+	 * dead - shut it down and return 1
+	 * other situation return 0
+	 * */
+	uint32_t token;
+	char idbuf[NG_NODESIZ];
+
+	memset (idbuf, 0, sizeof(idbuf));
+	snprintf(idbuf, sizeof(idbuf), "[%08x]:", node);
+	token = NgSendMsg(cmonsock, idbuf, NGM_KSOCKET_COOKIE,
+			NGM_KSOCKET_GETPEERNAME, NULL, 0);
+	if ((int) token == -1) {
+		if (errno == ENOTCONN) {
+			syslog(LOG_INFO,
+					"%s : Socket not connected, node %s: will be shutdown",
+					__FUNCTION__, idbuf);
+			shut_node(idbuf);
+			return 1;
+		} else if (errno == ENOENT) {
+			syslog(LOG_NOTICE, "%s (): Node already closed %s", __FUNCTION__,
+					idbuf);
+			return 1;
+		} else {
+			syslog(LOG_ERR,
+					"%s (): An error has occured while getpeername from node: %s, %s",
+					__FUNCTION__,  idbuf, strerror(errno));
+			return 0;
+		}
+	}
+	return 0;
+}
 /* Get peer name to define is ksocket connected to client or not
  */
 int check_and_clear(int srv_num, int cmonsock) {
 	/*
 	 
 	 Goal of this function is to find and shutdown nodes that don`t have
-	 connected clients, for that specific hub the srv_num variable is 
-	 to determine which hub we should examine (server_cfg[srv_num].)
+	 connected clients (NGM_KSOCKET_GETPEERNAME returns error ENOTCONN),
+	 for that specific hub, the srv_num variable points on
+	 which hub we should examine (server_cfg[srv_num].)
 
 	 */
 
 	// hubXXX - listhooks than for each hook getpeername
+
+
+
+
+
 	union {
 		u_char buf[sizeof(struct ng_mesg) + sizeof(struct sockaddr)];
 		struct ng_mesg reply;

@@ -31,7 +31,13 @@ struct server_cfg {
 	u_int c_count;
 } server_cfg[MAX_SERVERS];
 
-struct clients {
+typedef struct clients {
 	u_int node_id;
 	u_int srv_num;
-} clients[MAX_CLIENTS];
+} client;
+
+client clients_primary[MAX_CLIENTS];
+client clients_secondary[MAX_CLIENTS];
+
+client *primary;
+client *secondary;

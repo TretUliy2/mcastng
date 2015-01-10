@@ -20,7 +20,6 @@
 
 extern int srv_count;
 extern pthread_mutex_t mutex;
-extern char http_replay[];
 extern u_int32_t tokens[MAX_SERVERS];
 // External functions
 extern void shut_fanout(void);
@@ -42,6 +41,9 @@ u_int32_t parse_pth(char pth[NG_PATHSIZ]);
 /*
  *
  * */
+
+char http_replay[] =
+		"HTTP/1.0 200 OK\r\nContent-type: application/octet-stream\r\nCache-Control: no-cache\r\n\r\n";
 
 int create_listening_socket(int i, int srv_csock) {
 
