@@ -366,6 +366,8 @@ int check_and_clear(int cmonsock) {
 	primary = secondary;
 	secondary = tmp;
 
+	memset(secondary, 0, sizeof(MAX_CLIENTS*sizeof(client)));
+
 	/*
 	union {
 		u_char buf[sizeof(struct ng_mesg) + sizeof(struct sockaddr)];
