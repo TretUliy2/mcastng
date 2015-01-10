@@ -48,6 +48,7 @@ void exit_nice(void);
 void daemonize(void);
 int check_and_clear(int srv_num, int cmonsock);
 int shut_clients(int srv_num, int cmonsock);
+int client_dead(int node, int cmonsock);
 int shut_node(char path[NG_PATHSIZ]);
 void print_config(void);
 
