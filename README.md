@@ -13,7 +13,6 @@ Sample config below:
 [global]
 
 basename = hub
-# This is an IP address which assigned to multicast interface if you don`t want to write for each server one
 mifsrc = 192.168.22.33
 [servers]
 vlan9@239.125.10.3:1234	0.0.0.0:9100
