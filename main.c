@@ -347,6 +347,8 @@ int check_and_clear(int srv_num, int cmonsock) {
 	pthread_mutex_lock(&mutex);
 	c_count = client_count;
 	for (i = 0; i < c_count; i++) {
+		Log(LOG_INFO, "%s(): primary[%d].node = [%08x]:",
+				__FUNCTION__, i, primary[i].node_id);
 		if (client_dead(primary[i].node_id, cmonsock)) {
 			// Dead node detected
 			int srv_num = primary[i].srv_num;
