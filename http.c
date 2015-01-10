@@ -36,6 +36,7 @@ struct connect {
 int handle_client(int csock, int dsock, struct connect);
 void send_accept(int srv_csock, int srv_num);
 void * mkserver_http(void);
+int create_listening_socket(int i, int srv_csock);
 u_int32_t parse_pth(char pth[NG_PATHSIZ]);
 
 /*
