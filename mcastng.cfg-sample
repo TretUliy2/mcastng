@@ -1,0 +1,11 @@
+# Comment
+#Comment
+
+[global]
+# This name will be used to name hubs e.g. hub0, hub1, hub2 and so on
+basename = hub
+# This is an IP address which assigned to multicast interface
+mifsrc = 192.168.22.33
+[servers]
+#IP #PORT #IP #PORT 
+vlan9@239.125.10.3:1234	0.0.0.0:9100
