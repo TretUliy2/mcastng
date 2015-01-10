@@ -21,6 +21,7 @@
 extern int srv_count;
 extern pthread_mutex_t mutex;
 extern uint32_t tokens[MAX_SERVERS], client_count;
+extern client *primary;
 // External functions
 extern void shut_fanout(void);
 extern void exit_nice(void);

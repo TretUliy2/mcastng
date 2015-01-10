@@ -35,9 +35,3 @@ typedef struct clients {
 	u_int node_id;
 	u_int srv_num;
 } client;
-
-client clients_primary[MAX_CLIENTS];
-client clients_secondary[MAX_CLIENTS];
-
-client *primary;
-client *secondary;

@@ -67,6 +67,11 @@ uint32_t client_count = 0; // Global client counter
 pthread_t threads[MAX_THREADS], main_thread;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 uint32_t tokens[MAX_SERVERS];
+client clients_primary[MAX_CLIENTS];
+client clients_secondary[MAX_CLIENTS];
+
+client *primary;
+client *secondary;
 
 // Main Program
 int main(int argc, char **argv) {
@@ -85,6 +90,8 @@ int main(int argc, char **argv) {
 	memset(clients_primary, 0, sizeof(clients_primary));
 	memset(clients_secondary, 0, sizeof(clients_secondary));
 
+	primary = clients_primary;
+	secondary  = clients_secondary;
 	cfgflag = debug = dflag = iuflag = nflag = ihtflag = ohtflag = ouflag =
 			iuiflag = 0;
 	// Thread counter set to 0 and zeroing threads array
