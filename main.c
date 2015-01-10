@@ -63,11 +63,10 @@ extern void Log(int log, const char *fmt, ...);
 const char *logfile;
 int srv_count, thr;  // Global server counter
 int daemonized;
-u_int32_t client_count; // Global client counter
+uint32_t client_count = 0; // Global client counter
 pthread_t threads[MAX_THREADS], main_thread;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-u_int32_t tokens[MAX_SERVERS];
-
+uint32_t tokens[MAX_SERVERS];
 
 // Main Program
 int main(int argc, char **argv) {
@@ -328,17 +327,37 @@ int check_and_clear(int srv_num, int cmonsock) {
 	 
 	 Goal of this function is to find and shutdown nodes that don`t have
 	 connected clients (NGM_KSOCKET_GETPEERNAME returns error ENOTCONN),
-	 for that specific hub, the srv_num variable points on
+	 for that specific client, the srv_num variable points on
 	 which hub we should examine (server_cfg[srv_num].)
 
 	 */
 
 	// hubXXX - listhooks than for each hook getpeername
+	int i;
+	uint32_t sec_idx = 0;
+	uint32_t c_count;
+	client *tmp;
+	pthread_mutex_lock(&mutex);
+	for (i = 0; i < client_count; i++) {
+		if (check_dead(primary[i].node_id)) {
+			// Dead node detected
+			int srv_num = primary[i].srv_num;
+			if (--server_cfg[srv_num].c_count == 0) {
+				drop_mgroup(srv_num);
+			}
+			server_cfg[srv_num].streaming = 0;
+		} else {
+			secondary[sec_idx] = primary[i];
+			sec_idx++;
+		}
+	}
+	pthread_mutex_unlock(&mutex);
 
+	tmp = primary;
+	primary = secondary;
+	secondary = tmp;
 
-
-
-
+	/*
 	union {
 		u_char buf[sizeof(struct ng_mesg) + sizeof(struct sockaddr)];
 		struct ng_mesg reply;
@@ -445,6 +464,7 @@ int check_and_clear(int srv_num, int cmonsock) {
 	}
 
 	free(resp);
+	*/
 	return EXIT_SUCCESS;
 }
 // Shutdown clients
