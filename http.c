@@ -20,7 +20,8 @@
 
 extern int srv_count;
 extern pthread_mutex_t mutex;
-extern u_int32_t tokens[MAX_SERVERS];
+extern uint32_t tokens[MAX_SERVERS], client_count;
+extern client *primary;
 // External functions
 extern void shut_fanout(void);
 extern void exit_nice(void);
@@ -37,7 +38,7 @@ int handle_client(int csock, int dsock, struct connect);
 void send_accept(int srv_csock, int srv_num);
 void * mkserver_http(void);
 int create_listening_socket(int i, int srv_csock);
-u_int32_t parse_pth(char pth[NG_PATHSIZ]);
+uint32_t parse_pth(char pth[NG_PATHSIZ]);
 
 /*
  *
@@ -218,6 +219,13 @@ void * mkserver_http(void) {
 				"%s(%d): We have a new client connection node: %s streaming = %d",
 				__FUNCTION__, i, pth, server_cfg[i].streaming);
 
+		pthread_mutex_lock(&mutex);
+		server_cfg[i].c_count++;
+		primary[client_count].node_id = parse_pth(pth);
+		primary[client_count].srv_num = i;
+		client_count++;
+		pthread_mutex_unlock(&mutex);
+
 		if (server_cfg[i].streaming == 0) {
 			Log(LOG_NOTICE,
 					"%s(%d): no connected clients ADD GROUP MEMBERSHIP needed",
@@ -239,21 +247,21 @@ void * mkserver_http(void) {
 	return NULL;
 }
 // We need to translate received in ng answer value from [0000000de]: to int
-u_int32_t parse_pth(char pth[NG_PATHSIZ]) {
-	u_int32_t i, j;
+uint32_t parse_pth(char pth[NG_PATHSIZ]) {
+	uint32_t i, j;
 	char buf[NG_PATHSIZ];
 	memset(buf, 0, sizeof(buf));
 
 	for (i = 1, j = 0; i < (strlen(pth) - 2); i++, j++) {
 		buf[j] = pth[i];
 	}
-	return (u_int32_t) strtol(buf, NULL, 16);
+	return (uint32_t) strtol(buf, NULL, 16);
 }
 
 // Sending accept message to ng_ksocket node for next client be able to connect
 void send_accept(int srv_csock, int srv_num) {
 	char path[NG_PATHSIZ];
-	u_int32_t token;
+	uint32_t token;
 	memset(path, 0, sizeof(path));
 	sprintf(path, "%s%s:", server_cfg[srv_num].name, SERVSOCK);
 

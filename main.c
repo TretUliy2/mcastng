@@ -46,7 +46,7 @@ void usage(const char *progname);
 void signal_handler(int sig);
 void exit_nice(void);
 void daemonize(void);
-int check_and_clear(int srv_num, int cmonsock);
+int check_and_clear(int cmonsock);
 int shut_clients(int srv_num, int cmonsock);
 int client_dead(int node, int cmonsock);
 int shut_node(char path[NG_PATHSIZ]);
@@ -63,11 +63,15 @@ extern void Log(int log, const char *fmt, ...);
 const char *logfile;
 int srv_count, thr;  // Global server counter
 int daemonized;
-u_int32_t client_count; // Global client counter
+uint32_t client_count = 0; // Global client counter
 pthread_t threads[MAX_THREADS], main_thread;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-u_int32_t tokens[MAX_SERVERS];
+uint32_t tokens[MAX_SERVERS];
+client clients_primary[MAX_CLIENTS];
+client clients_secondary[MAX_CLIENTS];
 
+client *primary;
+client *secondary;
 
 // Main Program
 int main(int argc, char **argv) {
@@ -86,6 +90,8 @@ int main(int argc, char **argv) {
 	memset(clients_primary, 0, sizeof(clients_primary));
 	memset(clients_secondary, 0, sizeof(clients_secondary));
 
+	primary = clients_primary;
+	secondary  = clients_secondary;
 	cfgflag = debug = dflag = iuflag = nflag = ihtflag = ohtflag = ouflag =
 			iuiflag = 0;
 	// Thread counter set to 0 and zeroing threads array
@@ -224,9 +230,7 @@ int main(int argc, char **argv) {
 	}
 
 	for (;;) {
-		for (i = 0; i < srv_count; i++) {
-			check_and_clear(i, cmonsock);
-		}
+		check_and_clear(cmonsock);
 		sleep(10);
 	}
 
@@ -323,22 +327,48 @@ int client_dead(int node, int cmonsock) {
 }
 /* Get peer name to define is ksocket connected to client or not
  */
-int check_and_clear(int srv_num, int cmonsock) {
+int check_and_clear(int cmonsock) {
 	/*
 	 
 	 Goal of this function is to find and shutdown nodes that don`t have
 	 connected clients (NGM_KSOCKET_GETPEERNAME returns error ENOTCONN),
-	 for that specific hub, the srv_num variable points on
+	 for that specific client, the srv_num variable points on
 	 which hub we should examine (server_cfg[srv_num].)
 
 	 */
 
 	// hubXXX - listhooks than for each hook getpeername
+	uint32_t sec_idx = 0;
+	uint32_t i, c_count;
+	client *tmp;
 
+	pthread_mutex_lock(&mutex);
+	c_count = client_count;
+	for (i = 0; i < c_count; i++) {
+		Log(LOG_INFO, "%s(): primary[%d].node = [%08x]:",
+				__FUNCTION__, i, primary[i].node_id);
+		if (client_dead(primary[i].node_id, cmonsock)) {
+			// Dead node detected
+			int srv_num = primary[i].srv_num;
+			client_count--;
+			if (--server_cfg[srv_num].c_count == 0) {
+				drop_mgroup(srv_num);
+			}
+			server_cfg[srv_num].streaming = 0;
+		} else {
+			secondary[sec_idx] = primary[i];
+			sec_idx++;
+		}
+	}
+	pthread_mutex_unlock(&mutex);
 
+	tmp = primary;
+	primary = secondary;
+	secondary = tmp;
 
+	memset(secondary, 0, sizeof(MAX_CLIENTS*sizeof(client)));
 
-
+	/*
 	union {
 		u_char buf[sizeof(struct ng_mesg) + sizeof(struct sockaddr)];
 		struct ng_mesg reply;
@@ -445,6 +475,7 @@ int check_and_clear(int srv_num, int cmonsock) {
 	}
 
 	free(resp);
+	*/
 	return EXIT_SUCCESS;
 }
 // Shutdown clients
