@@ -9,6 +9,8 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <syslog.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
 
 #include "ng-r.h"
 
@@ -97,6 +99,17 @@ int create_listening_socket(int i, int srv_csock) {
 		Log(LOG_ERR, "%s(%d): Sockopt set failed : %s", __FUNCTION__, i,
 				strerror(errno));
 		return -1;
+	}
+	// set dscp value 32 for socket
+	sockopt->level = IPPROTO_IP;
+	sockopt->name = IP_TOS;
+	yes = IPTOS_DSCP_CS4; 
+	memcpy(sockopt->value, &yes, sizeof(int));
+	
+	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
+			sockopt, sizeof(sockopt_buf)) == -1) {
+		Log(LOG_ERR, "%s(%d): Sockopt set failed : %s", __FUNCTION__, i,
+				strerror(errno));
 	}
 	// msg servsock: bind inet/0.0.0.0:8080
 	sprintf(path, "%s%s:", server_cfg[i].name, SERVSOCK);
