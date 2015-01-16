@@ -300,6 +300,8 @@ int client_dead(int node, int cmonsock) {
 	 * */
 	uint32_t token;
 	char idbuf[NG_NODESIZ];
+	struct ng_mesg *resp;
+	struct sockaddr_in peername;
 
 	memset (idbuf, 0, sizeof(idbuf));
 	snprintf(idbuf, sizeof(idbuf), "[%08x]:", node);
@@ -323,6 +325,14 @@ int client_dead(int node, int cmonsock) {
 			return 0;
 		}
 	}
+	if (NgAllocRecvMsg(cmonsock, &resp, NULL) < 0) {
+		return 0;
+	}
+
+	peername = (struct sockaddr_in)resp->data;
+	Log(LOG_NOTICE, "%s(): Peer %s:%d still connected",
+			__FUNCTION__, inet_ntoa(peername.sin_addr), ntohs(peername.sin_port));
+	free(resp);
 	return 0;
 }
 /* Get peer name to define is ksocket connected to client or not
