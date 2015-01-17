@@ -41,7 +41,8 @@ void send_accept(int srv_csock, int srv_num);
 void * mkserver_http(void);
 int create_listening_socket(int i, int srv_csock);
 uint32_t parse_pth(char pth[NG_PATHSIZ]);
-
+int set_tos(int srv_csock, char path[NG_PATHSIZ]);
+int reuse_port(int srv_csock, char path[NG_PATHSIZ]);
 /*
  *
  * */
@@ -49,20 +50,107 @@ uint32_t parse_pth(char pth[NG_PATHSIZ]);
 char http_replay[] =
 		"HTTP/1.0 200 OK\r\nContent-type: application/octet-stream\r\nCache-Control: no-cache\r\n\r\n";
 
-int create_listening_socket(int i, int srv_csock) {
-
-	char path[NG_PATHSIZ], ourhook[NG_HOOKSIZ];
-	char name[NG_NODESIZ];
-	struct ngm_mkpeer mkp;
+int set_tos (int srv_csock, char path[NG_PATHSIZ]) {
+	int tos;
 	union {
 		u_char buf[sizeof(struct ng_ksocket_sockopt) + sizeof(int)];
 		struct ng_ksocket_sockopt sockopt;
 	} sockopt_buf;
 	struct ng_ksocket_sockopt * const sockopt = &sockopt_buf.sockopt;
-	int lst, yes;
+	//struct ng_ksocket_sockopt *sockopt_resp = malloc(sizeof(struct ng_ksocket_sockopt) + sizeof(int));
+	//struct ng_mesg *m;
+
+	// set dscp value 32 for socket
+	sockopt->level = IPPROTO_IP;
+	sockopt->name = IP_TOS;
+	tos = IPTOS_DSCP_CS4;
+
+	memcpy(sockopt->value, &tos, sizeof(tos));
+	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
+			sockopt, sizeof(sockopt_buf) ) == -1) {
+		Log(LOG_ERR, "%s(): Sockopt set failed : %s", __FUNCTION__,
+				strerror(errno));
+		return 0;
+	} else  {
+		/*
+		memset(sockopt_resp, 0, sizeof(struct ng_ksocket_sockopt) + sizeof(int));
+		sockopt_resp->level = IPPROTO_IP;
+		sockopt_resp->name = IP_TOS;
+		*/
+		// Trying to get option we just set
+		/*
+		if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_GETOPT,
+        		sockopt_resp, sizeof(*sockopt_resp)) == -1) {
+        	Log(LOG_ERR, "%s() can`t get sockopt from address :%s because : %s", __FUNCTION__,
+        			path, strerror(errno));
+        	NgSetDebug(0);
+        	return 0;
+        }
+        */
+		NgSetDebug(0);
+
+		/*
+		if (NgAllocRecvMsg(srv_csock, &m, NULL) < 0) {
+			Log(LOG_ERR, "%s() Error receiving response", __FUNCTION__);
+		} else {
+			Log(LOG_NOTICE, "%s() message received level = %d",
+					__FUNCTION__, ((struct ng_ksocket_sockopt *)m->data)->level );
+			NgSetDebug(0);
+			free(m);
+		}
+
+		Log(LOG_NOTICE, "%s(): sockopt_resp.value = 0x%08x must be = 0x%08x",
+				__FUNCTION__, sockopt_resp->value, IPTOS_DSCP_CS4);
+		*/
+        //sockopt_resp = (struct ng_ksocket_sockopt *)m->data;
+        //Log(LOG_NOTICE, "%s(): m->header.token = %d sockopt->value = %s"
+        //		, __FUNCTION__,
+		//		m->header.token, sockopt_resp->value);
+		Log(LOG_INFO, "%s() tos = %d set for socket success", __FUNCTION__, tos);
+        return 1;
+    }
+	return 1;
+}
+
+int reuse_port (int srv_csock, char path[NG_PATHSIZ]) {
+	union {
+		u_char buf[sizeof(struct ng_ksocket_sockopt) + sizeof(int)];
+		struct ng_ksocket_sockopt sockopt;
+	} sockopt_buf;
+	struct ng_ksocket_sockopt * const sockopt = &sockopt_buf.sockopt;
+	int one = 1;
+
+	// setsockopt resolve TIME_WAIT problem
+	// setsockopt(fd,SOL_SOCKET,SO_REUSEPORT,&one,sizeof(int)) < 0)
+	memset(&sockopt_buf, 0, sizeof(sockopt_buf));
+
+	sockopt->level = SOL_SOCKET;
+	sockopt->name = SO_REUSEADDR;
+	memcpy(sockopt->value, &one, sizeof(int));
+	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
+			sockopt, sizeof(sockopt_buf)) == -1) {
+		Log(LOG_ERR, "%s(): Sockopt set failed : %s", __FUNCTION__,
+				strerror(errno));
+		return -1;
+	}
+	sockopt->name = SO_REUSEPORT;
+	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
+				sockopt, sizeof(sockopt_buf)) == -1) {
+			Log(LOG_ERR, "%s(): Sockopt set failed : %s", __FUNCTION__,
+					strerror(errno));
+			return -1;
+	}
+	return 1;
+}
+
+int create_listening_socket(int i, int srv_csock) {
+	char path[NG_PATHSIZ], ourhook[NG_HOOKSIZ];
+	char name[NG_NODESIZ];
+	struct ngm_mkpeer mkp;
+	int lst;
 	uint32_t token;
 	const char *basename;
-	yes = 1;
+
 
 	// mkpeer . ksocket listen/stream/tcp
 	basename = server_cfg[i].name;
@@ -87,36 +175,16 @@ int create_listening_socket(int i, int srv_csock) {
 				__FUNCTION__, i, path, strerror(errno));
 		return -1;
 	}
-	// setsockopt resolve TIME_WAIT problem
-	// setsockopt(fd,SOL_SOCKET,SO_REUSEPORT,&one,sizeof(int)) < 0)
-	memset(&sockopt_buf, 0, sizeof(sockopt_buf));
 
-	sockopt->level = SOL_SOCKET;
-	sockopt->name = SO_REUSEPORT;
-	memcpy(sockopt->value, &yes, sizeof(int));
-	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
-			sockopt, sizeof(sockopt_buf)) == -1) {
-		Log(LOG_ERR, "%s(%d): Sockopt set failed : %s", __FUNCTION__, i,
-				strerror(errno));
-		return -1;
-	}
-	// set dscp value 32 for socket
-	sockopt->level = IPPROTO_IP;
-	sockopt->name = IP_TOS;
-	yes = IPTOS_DSCP_CS4; 
-	memcpy(sockopt->value, &yes, sizeof(int));
-	
-	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
-			sockopt, sizeof(sockopt_buf)) == -1) {
-		Log(LOG_ERR, "%s(%d): Sockopt set failed : %s", __FUNCTION__, i,
-				strerror(errno));
-	}
+
 	// msg servsock: bind inet/0.0.0.0:8080
 	sprintf(path, "%s%s:", server_cfg[i].name, SERVSOCK);
-
+    
 	Log(LOG_NOTICE, "%s(%d): Trying to bind to interface %s:%d", __FUNCTION__,
 			i, inet_ntoa(server_cfg[i].dst.sin_addr),
 			ntohs(server_cfg[i].dst.sin_port));
+
+
 
 	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_BIND,
 			&server_cfg[i].dst, sizeof(struct sockaddr_in)) < 0) {
@@ -125,6 +193,10 @@ int create_listening_socket(int i, int srv_csock) {
 				ntohs(server_cfg[i].dst.sin_port), strerror(errno));
 		return -1;
 	}
+	// Setting REUSE_PORT
+	reuse_port(srv_csock, path);
+	// Setting tos value
+	set_tos(srv_csock, path);
 	//  msg servsock: listen 64
 	lst = LST;
 	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_LISTEN, &lst,
@@ -133,6 +205,7 @@ int create_listening_socket(int i, int srv_csock) {
 				i, strerror(errno));
 		return -1;
 	}
+
 
 	Log(LOG_NOTICE, "%s(%d): Starting cycle %d of ACCEPT", __FUNCTION__, i, i);
 	// msg servsock: accept
@@ -224,6 +297,7 @@ void * mkserver_http(void) {
 		}
 		// Handling clients
 		sprintf(connect.pth, pth, sizeof(pth));
+		set_tos(srv_csock, pth);
 		connect.srv_num = i;
 
 		handle_client(srv_csock, srv_dsock, connect);
