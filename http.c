@@ -11,6 +11,7 @@
 #include <syslog.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <netinet/tcp.h>
 
 #include "ng-r.h"
 
@@ -106,6 +107,30 @@ int reuse_port (int srv_csock, char path[NG_PATHSIZ]) {
 	return 1;
 }
 
+int no_delay (int srv_csock, char path[NG_PATHSIZ]) {
+	union {
+		u_char buf[sizeof(struct ng_ksocket_sockopt) + sizeof(int)];
+		struct ng_ksocket_sockopt sockopt;
+	} sockopt_buf;
+	struct ng_ksocket_sockopt * const sockopt = &sockopt_buf.sockopt;
+	int one = 1;
+
+	// setsockopt resolve TIME_WAIT problem
+	// setsockopt(fd,SOL_SOCKET,SO_REUSEPORT,&one,sizeof(int)) < 0)
+	memset(&sockopt_buf, 0, sizeof(sockopt_buf));
+
+	sockopt->level = IPPROTO_TCP;
+	sockopt->name = TCP_NODELAY;
+	memcpy(sockopt->value, &one, sizeof(int));
+	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
+			sockopt, sizeof(sockopt_buf)) == -1) {
+		Log(LOG_ERR, "%s(): Sockopt set failed : %s", __FUNCTION__,
+				strerror(errno));
+		return -1;
+	}
+	return 1;
+}
+
 int create_listening_socket(int i, int srv_csock) {
 	char path[NG_PATHSIZ], ourhook[NG_HOOKSIZ];
 	char name[NG_NODESIZ];
@@ -160,6 +185,7 @@ int create_listening_socket(int i, int srv_csock) {
 	reuse_port(srv_csock, path);
 	// Setting tos value
 	set_tos(srv_csock, path);
+	no_delay(srv_csock, path);
 	//  msg servsock: listen 64
 	lst = LST;
 	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_LISTEN, &lst,
