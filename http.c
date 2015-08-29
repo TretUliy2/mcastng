@@ -44,6 +44,7 @@ int create_listening_socket(int i, int srv_csock);
 uint32_t parse_pth(char pth[NG_PATHSIZ]);
 int set_tos(int srv_csock, char path[NG_PATHSIZ]);
 int reuse_port(int srv_csock, char path[NG_PATHSIZ]);
+int no_delay(int srv_csock, char path[NG_PATHSIZ]);
 /*
  *
  * */
