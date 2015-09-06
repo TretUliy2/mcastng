@@ -363,8 +363,8 @@ int check_and_clear(int cmonsock) {
 			client_count--;
 			if (--server_cfg[srv_num].c_count == 0) {
 				drop_mgroup(srv_num);
+				server_cfg[srv_num].streaming = 0;
 			}
-			server_cfg[srv_num].streaming = 0;
 		} else {
 			secondary[sec_idx] = primary[i];
 			sec_idx++;
