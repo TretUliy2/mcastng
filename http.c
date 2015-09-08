@@ -342,7 +342,6 @@ int get_client_address(int node_id, int srv_csock) {
 			syslog(LOG_INFO,
 					"%s : Socket not connected, node %s: will be shutdown",
 					__FUNCTION__, idbuf);
-			shut_node(idbuf);
 			return 1;
 		} else if (errno == ENOENT) {
 			syslog(LOG_NOTICE, "%s (): Node already closed %s", __FUNCTION__,
