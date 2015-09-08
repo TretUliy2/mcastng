@@ -299,7 +299,7 @@ int client_dead(int node, int cmonsock) {
 	 * other situation return 0
 	 * */
 	uint32_t token;
-	char idbuf[NG_NODESIZ];
+	char idbuf[NG_PATHSIZ];
 	struct ng_mesg *resp;
 	struct sockaddr_in *peername;
 
@@ -359,9 +359,13 @@ int check_and_clear(int cmonsock) {
 				__FUNCTION__, i, primary[i].node_id);
 		if (client_dead(primary[i].node_id, cmonsock)) {
 			// Dead node detected
+			Log(LOG_ERR, "%s() disconnected client %s:%d", __FUNCTION__,
+					inet_ntoa(primary[i].addr.sin_addr), ntohs(primary[i].addr.sin_port));
 			int srv_num = primary[i].srv_num;
 			client_count--;
 			if (--server_cfg[srv_num].c_count == 0) {
+				Log(LOG_ERR, "%s() Last client on server_num %d dropping group",
+						__FUNCTION__, srv_num);
 				drop_mgroup(srv_num);
 				server_cfg[srv_num].streaming = 0;
 			}

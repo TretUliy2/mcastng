@@ -45,6 +45,7 @@ uint32_t parse_pth(char pth[NG_PATHSIZ]);
 int set_tos(int srv_csock, char path[NG_PATHSIZ]);
 int reuse_port(int srv_csock, char path[NG_PATHSIZ]);
 int no_delay(int srv_csock, char path[NG_PATHSIZ]);
+int get_client_address(int node_id, int srv_csock);
 /*
  *
  * */
@@ -295,11 +296,13 @@ void * mkserver_http(void) {
 		Log(LOG_INFO,
 				"%s(%d): We have a new client connection node: %s streaming = %d",
 				__FUNCTION__, i, pth, server_cfg[i].streaming);
+		// Change shared data structures
 
 		pthread_mutex_lock(&mutex);
 		server_cfg[i].c_count++;
 		primary[client_count].node_id = parse_pth(pth);
 		primary[client_count].srv_num = i;
+		get_client_address(primary[client_count].node_id, srv_csock);
 		client_count++;
 		pthread_mutex_unlock(&mutex);
 
@@ -323,6 +326,50 @@ void * mkserver_http(void) {
 	}
 	return NULL;
 }
+
+int get_client_address(int node_id, int srv_csock) {
+	uint32_t token;
+	char idbuf[NG_PATHSIZ];
+	struct ng_mesg *resp;
+	struct sockaddr_in *peername;
+
+	memset (idbuf, 0, sizeof(idbuf));
+	snprintf(idbuf, sizeof(idbuf), "[%08x]:", node_id);
+	token = NgSendMsg(srv_csock, idbuf, NGM_KSOCKET_COOKIE,
+			NGM_KSOCKET_GETPEERNAME, NULL, 0);
+	if ((int) token == -1) {
+		if (errno == ENOTCONN) {
+			syslog(LOG_INFO,
+					"%s : Socket not connected, node %s: will be shutdown",
+					__FUNCTION__, idbuf);
+			shut_node(idbuf);
+			return 1;
+		} else if (errno == ENOENT) {
+			syslog(LOG_NOTICE, "%s (): Node already closed %s", __FUNCTION__,
+					idbuf);
+			return 1;
+		} else {
+			syslog(LOG_ERR,
+					"%s (): An error has occured while getpeername from node: %s, %s",
+					__FUNCTION__,  idbuf, strerror(errno));
+			return 0;
+		}
+	}
+	if (NgAllocRecvMsg(srv_csock, &resp, NULL) < 0) {
+		return 0;
+	}
+
+	peername = (struct sockaddr_in *)resp->data;
+	primary[client_count].addr.sin_family = AF_INET;
+	primary[client_count].addr.sin_len = peername->sin_len;
+	primary[client_count].addr.sin_port = peername->sin_port;
+	primary[client_count].addr.sin_addr = peername->sin_addr;
+	Log(LOG_NOTICE, "%s(): serving new client connection from %s:%d",
+			__FUNCTION__, inet_ntoa(peername->sin_addr), ntohs(peername->sin_port));
+	free(resp);
+	return 1;
+}
+
 // We need to translate received in ng answer value from [0000000de]: to int
 uint32_t parse_pth(char pth[NG_PATHSIZ]) {
 	uint32_t i, j;
