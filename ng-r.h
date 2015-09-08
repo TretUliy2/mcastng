@@ -34,4 +34,5 @@ struct server_cfg {
 typedef struct clients {
 	u_int node_id;
 	u_int srv_num;
+	struct sockaddr_in addr;
 } client;

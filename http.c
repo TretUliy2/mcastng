@@ -262,7 +262,7 @@ void * mkserver_http(void) {
 	for (i = 0; i < srv_count; i++) {
 		create_listening_socket(i, srv_csock);
 	}
-
+	// Serve clients
 	for (;;) {
 		int found = 0;
 		if (NgAllocRecvMsg(srv_csock, &m, pth) < 0) {
