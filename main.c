@@ -290,7 +290,7 @@ void signal_handler(int sig) {
 //			Log(LOG_INFO, "clint[%d] srv_num = %d node = [%08x]: address = %s:%s",
 //					i, primary[i].srv_num, primary[i].node_id, inet_ntoa(primary[i].addr.sin_addr),
 //					ntohs(primary[i].addr.sin_port));
-			Log(LOG_INFO, "client[%d]", i);
+			Log(LOG_INFO, "client[%d] srv_num = %d", i, primary[i].srv_num);
 		}
 		pthread_mutex_unlock(&mutex);
 		break;
