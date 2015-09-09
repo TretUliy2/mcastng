@@ -288,13 +288,13 @@ void signal_handler(int sig) {
 			//Log(LOG_INFO, "client[%d] srv_num = %d", i, primary[i].srv_num);
 		}
 		for (i = 0; i < (unsigned int)srv_count; i++) {
+			char src[100], dst[100];
+		    memset(src, 0, sizeof(src));
+		    memset(dst, 0, sizeof(src));
+			sprintf(src, "%s:%d", inet_ntoa(server_cfg[i].src.sin_addr), ntohs(server_cfg[i].dst.sin_port));
+			sprintf(dst, "%s:%d", inet_ntoa(server_cfg[i].src.sin_addr), ntohs(server_cfg[i].src.sin_port));
 			if (server_cfg[i].streaming == 1)
-			Log(LOG_INFO, "server[%d] multicast(dst) = %s:%d src = %s:%d", i,
-					inet_ntoa(server_cfg[i].dst.sin_addr),
-					ntohs(server_cfg[i].dst.sin_port),
-					inet_ntoa(server_cfg[i].src.sin_addr),
-					ntohs(server_cfg[i].src.sin_port)
-			);
+			Log(LOG_INFO, "server[%d] multicast(dst) = %s src = %s", i, dst, src);
 		}
 		break;
 	default:
