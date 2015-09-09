@@ -239,7 +239,11 @@ int main(int argc, char **argv) {
 
 void exit_nice(void) {
 	int err, i;
-
+	for ( i = 0; i < srv_count; i++ ) {
+		if ( server_cfg[i].streaming == 1 ) {
+			drop_mgroup(i);
+		}
+	}
 	for (i = 0; i < thr; i++) {
 		err = pthread_cancel(threads[i]);
 		if (err != 0) {
