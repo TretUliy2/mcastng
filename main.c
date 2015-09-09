@@ -277,8 +277,15 @@ void signal_handler(int sig) {
 		exit_nice();
 		break;
 	case SIGUSR1:
-		Log(LOG_INFO, "%s: Caught SIGUSR1 calling check_and_clear()",
+		Log(LOG_INFO, "%s: Caught SIGUSR1",
 				__FUNCTION__);
+		uint32_t i, c_count;
+		c_count = client_count;
+		for ( i = 0; i < c_count; i++ ) {
+			Log(LOG_INFO, "clint[%d] srv_num = %d node = [%08x]: address = %s:%s",
+					i, primary[i].srv_num, primary[i].node_id, inet_ntoa(primary[i].addr.sin_addr),
+					ntohs(primary[i].addr.sin_port));
+		}
 		break;
 	default:
 		Log(LOG_INFO, "%s: %s signal catched closing all", __FUNCTION__,
@@ -359,7 +366,7 @@ int check_and_clear(int cmonsock) {
 				__FUNCTION__, i, primary[i].node_id);
 		if (client_dead(primary[i].node_id, cmonsock)) {
 			// Dead node detected
-			Log(LOG_ERR, "%s() disconnected client %s:%d", __FUNCTION__,
+			Log(LOG_INFO, "%s() disconnected client %s:%d", __FUNCTION__,
 					inet_ntoa(primary[i].addr.sin_addr), ntohs(primary[i].addr.sin_port));
 			int srv_num = primary[i].srv_num;
 			client_count--;
