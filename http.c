@@ -37,7 +37,7 @@ struct connect {
 	int srv_num;
 };
 // Internal Functions
-int handle_client(int csock, int dsock, struct connect);
+int handle_client(struct connect);
 void send_accept(int srv_csock, int srv_num);
 void * mkserver_http(void);
 int create_listening_socket(int i, int srv_csock);
@@ -46,6 +46,10 @@ int set_tos(int srv_csock, char path[NG_PATHSIZ]);
 int reuse_port(int srv_csock, char path[NG_PATHSIZ]);
 int no_delay(int srv_csock, char path[NG_PATHSIZ]);
 int get_client_address(int node_id, int srv_csock);
+
+// Global variables
+
+static int srv_csock, srv_dsock;
 /*
  *
  * */
@@ -233,7 +237,7 @@ void * mkserver_http(void) {
 	char pth[NG_PATHSIZ];
 	char name[NG_NODESIZ];
 
-	int i, srv_csock, srv_dsock;
+	int i;
 
 	union {
 		u_char buf[sizeof(struct ng_mesg) + sizeof(struct sockaddr)];
@@ -291,7 +295,7 @@ void * mkserver_http(void) {
 		set_tos(srv_csock, pth);
 		connect.srv_num = i;
 
-		handle_client(srv_csock, srv_dsock, connect);
+		handle_client(connect);
 
 		Log(LOG_INFO,
 				"%s(%d): We have a new client connection node: %s streaming = %d",
@@ -403,7 +407,7 @@ void send_accept(int srv_csock, int srv_num) {
 /* Function to handle each client connection
  *
  * */
-int handle_client(int srv_csock, int srv_dsock, struct connect connect) {
+int handle_client(struct connect connect) {
 	/*
 	 * mkpeer . tee l2r left2right
 	 * connect l2r [1d]: left ksockhook
