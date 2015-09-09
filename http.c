@@ -340,7 +340,7 @@ int get_client_address(int node_id, int srv_csock) {
 	if ((int) token == -1) {
 		if (errno == ENOTCONN) {
 			syslog(LOG_INFO,
-					"%s : Socket not connected, node %s: will be shutdown",
+					"%s : Socket not connected, node %s",
 					__FUNCTION__, idbuf);
 			return 1;
 		} else if (errno == ENOENT) {
@@ -359,10 +359,10 @@ int get_client_address(int node_id, int srv_csock) {
 	}
 
 	peername = (struct sockaddr_in *)resp->data;
-	primary[client_count].addr.sin_family = AF_INET;
+	primary[client_count].addr.sin_family = peername->sin_family;
 	primary[client_count].addr.sin_len = peername->sin_len;
-	primary[client_count].addr.sin_port = peername->sin_port;
 	primary[client_count].addr.sin_addr = peername->sin_addr;
+	primary[client_count].addr.sin_port = peername->sin_port;
 	Log(LOG_NOTICE, "%s(): serving new client connection from %s:%d",
 			__FUNCTION__, inet_ntoa(peername->sin_addr), ntohs(peername->sin_port));
 	free(resp);
