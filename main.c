@@ -287,9 +287,10 @@ void signal_handler(int sig) {
 		pthread_mutex_lock(&mutex);
 		c_count = client_count;
 		for ( i = 0; i < c_count; i++ ) {
-			Log(LOG_INFO, "clint[%d] srv_num = %d node = [%08x]: address = %s:%s",
-					i, primary[i].srv_num, primary[i].node_id, inet_ntoa(primary[i].addr.sin_addr),
-					ntohs(primary[i].addr.sin_port));
+//			Log(LOG_INFO, "clint[%d] srv_num = %d node = [%08x]: address = %s:%s",
+//					i, primary[i].srv_num, primary[i].node_id, inet_ntoa(primary[i].addr.sin_addr),
+//					ntohs(primary[i].addr.sin_port));
+			Log(LOG_INFO, "client[%d]", i);
 		}
 		pthread_mutex_unlock(&mutex);
 		break;
