@@ -287,7 +287,7 @@ void signal_handler(int sig) {
 					ntohs(primary[i].addr.sin_port));
 			//Log(LOG_INFO, "client[%d] srv_num = %d", i, primary[i].srv_num);
 		}
-		for (i = 0; i < srv_count; i++) {
+		for (i = 0; i < (int)srv_count; i++) {
 			if (server_cfg[i].streaming == 1)
 			Log(LOG_INFO, "server[%d] multicast(dst) = %s:%d src = %s:%d", i,
 					inet_ntoa(server_cfg[i].dst.sin_addr),
