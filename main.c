@@ -284,12 +284,14 @@ void signal_handler(int sig) {
 		Log(LOG_INFO, "%s: Caught SIGUSR1",
 				__FUNCTION__);
 		uint32_t i, c_count;
+		pthread_mutex_lock(&mutex);
 		c_count = client_count;
 		for ( i = 0; i < c_count; i++ ) {
 			Log(LOG_INFO, "clint[%d] srv_num = %d node = [%08x]: address = %s:%s",
 					i, primary[i].srv_num, primary[i].node_id, inet_ntoa(primary[i].addr.sin_addr),
 					ntohs(primary[i].addr.sin_port));
 		}
+		pthread_mutex_unlock(&mutex);
 		break;
 	default:
 		Log(LOG_INFO, "%s: %s signal catched closing all", __FUNCTION__,
