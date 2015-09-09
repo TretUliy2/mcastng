@@ -279,7 +279,6 @@ void signal_handler(int sig) {
 		Log(LOG_INFO, "%s: Caught SIGUSR1",
 				__FUNCTION__);
 		uint32_t i, c_count;
-		pthread_mutex_lock(&mutex);
 		c_count = client_count;
 		for ( i = 0; i < c_count; i++ ) {
 			Log(LOG_INFO, "clint[%d] srv_num = %d node = [%08x]: address = %s:%d",
@@ -288,7 +287,15 @@ void signal_handler(int sig) {
 					ntohs(primary[i].addr.sin_port));
 			//Log(LOG_INFO, "client[%d] srv_num = %d", i, primary[i].srv_num);
 		}
-		pthread_mutex_unlock(&mutex);
+		for (i = 0; i < srv_count; i++) {
+			if (server_cfg[i].streaming == 1)
+			Log(LOG_INFO, "server[%d] multicast(dst) = %s:%d src = %s:%d", i,
+					inet_ntoa(server_cfg[i].dst.sin_addr),
+					ntohs(server_cfg[i].dst.sin_port),
+					inet_ntoa(server_cfg[i].src.sin_addr),
+					ntohs(server_cfg[i].src.sin_port)
+			);
+		}
 		break;
 	default:
 		Log(LOG_INFO, "%s: %s signal catched closing all", __FUNCTION__,
