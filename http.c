@@ -19,205 +19,44 @@
 #define	RUSAGE_SELF	0
 #define	SERVSOCK	"-servsock"
 
-// External variables
+/* External variables */
 
 extern int srv_count;
 extern pthread_mutex_t mutex;
 extern uint32_t tokens[MAX_SERVERS], client_count;
 extern client *primary;
-// External functions
+
+/* External functions */
 extern void shut_fanout(void);
 extern void exit_nice(void);
 extern int add_mgroup(int srv_num);
 extern void Log(int log, const char *fmt, ...);
 
-// Structures
+/*  Structures */
 struct connect {
 	char pth[NG_PATHSIZ];
 	int srv_num;
 };
-// Internal Functions
+/* Internal Functions */
 int handle_client(struct connect);
-void send_accept(int srv_csock, int srv_num);
+void send_accept(int srv_num);
 void * mkserver_http(void);
-int create_listening_socket(int i, int srv_csock);
+int create_listening_socket(int i);
 uint32_t parse_pth(char pth[NG_PATHSIZ]);
-int set_tos(int srv_csock, char path[NG_PATHSIZ]);
-int reuse_port(int srv_csock, char path[NG_PATHSIZ]);
-int no_delay(int srv_csock, char path[NG_PATHSIZ]);
-int get_client_address(int node_id, int srv_csock);
+int set_tos(char path[NG_PATHSIZ]);
+int reuse_port(char path[NG_PATHSIZ]);
+int no_delay(char path[NG_PATHSIZ]);
+int get_client_address(int node_id);
 
-// Global variables
+/* Global variables */
 
 static int srv_csock, srv_dsock;
-/*
- *
- * */
-
 char http_replay[] =
 		"HTTP/1.0 200 OK\r\nContent-type: application/octet-stream\r\nCache-Control: no-cache\r\n\r\n";
 
-int set_tos (int srv_csock, char path[NG_PATHSIZ]) {
-	int tos;
-	union {
-		u_char buf[sizeof(struct ng_ksocket_sockopt) + sizeof(int)];
-		struct ng_ksocket_sockopt sockopt;
-	} sockopt_buf;
-	struct ng_ksocket_sockopt * const sockopt = &sockopt_buf.sockopt;
-	//struct ng_ksocket_sockopt *sockopt_resp = malloc(sizeof(struct ng_ksocket_sockopt) + sizeof(int));
-	//struct ng_mesg *m;
 
-	// set dscp value 32 for socket
-	sockopt->level = IPPROTO_IP;
-	sockopt->name = IP_TOS;
-	tos = IPTOS_DSCP_CS4;
-
-	memcpy(sockopt->value, &tos, sizeof(tos));
-	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
-			sockopt, sizeof(sockopt_buf) ) == -1) {
-		Log(LOG_ERR, "%s(): Sockopt set failed : %s", __FUNCTION__,
-				strerror(errno));
-		return 0;
-	}
-	return 1;
-}
-
-int reuse_port (int srv_csock, char path[NG_PATHSIZ]) {
-	union {
-		u_char buf[sizeof(struct ng_ksocket_sockopt) + sizeof(int)];
-		struct ng_ksocket_sockopt sockopt;
-	} sockopt_buf;
-	struct ng_ksocket_sockopt * const sockopt = &sockopt_buf.sockopt;
-	int one = 1;
-
-	// setsockopt resolve TIME_WAIT problem
-	// setsockopt(fd,SOL_SOCKET,SO_REUSEPORT,&one,sizeof(int)) < 0)
-	memset(&sockopt_buf, 0, sizeof(sockopt_buf));
-
-	sockopt->level = SOL_SOCKET;
-	sockopt->name = SO_REUSEADDR;
-	memcpy(sockopt->value, &one, sizeof(int));
-	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
-			sockopt, sizeof(sockopt_buf)) == -1) {
-		Log(LOG_ERR, "%s(): Sockopt set failed : %s", __FUNCTION__,
-				strerror(errno));
-		return -1;
-	}
-	sockopt->name = SO_REUSEPORT;
-	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
-				sockopt, sizeof(sockopt_buf)) == -1) {
-			Log(LOG_ERR, "%s(): Sockopt set failed : %s", __FUNCTION__,
-					strerror(errno));
-			return -1;
-	}
-	return 1;
-}
-
-int no_delay (int srv_csock, char path[NG_PATHSIZ]) {
-	union {
-		u_char buf[sizeof(struct ng_ksocket_sockopt) + sizeof(int)];
-		struct ng_ksocket_sockopt sockopt;
-	} sockopt_buf;
-	struct ng_ksocket_sockopt * const sockopt = &sockopt_buf.sockopt;
-	int one = 1;
-
-	// setsockopt resolve TIME_WAIT problem
-	// setsockopt(fd,SOL_SOCKET,SO_REUSEPORT,&one,sizeof(int)) < 0)
-	memset(&sockopt_buf, 0, sizeof(sockopt_buf));
-
-	sockopt->level = IPPROTO_TCP;
-	sockopt->name = TCP_NODELAY;
-	memcpy(sockopt->value, &one, sizeof(int));
-	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
-			sockopt, sizeof(sockopt_buf)) == -1) {
-		Log(LOG_ERR, "%s(): Sockopt set failed : %s", __FUNCTION__,
-				strerror(errno));
-		return -1;
-	}
-	return 1;
-}
-
-int create_listening_socket(int i, int srv_csock) {
-	char path[NG_PATHSIZ], ourhook[NG_HOOKSIZ];
-	char name[NG_NODESIZ];
-	struct ngm_mkpeer mkp;
-	int lst;
-	uint32_t token;
-	const char *basename;
-
-
-	// mkpeer . ksocket listen/stream/tcp
-	basename = server_cfg[i].name;
-
-	sprintf(path, ".");
-	sprintf(ourhook, "%s%d", "listen", i);
-	snprintf(mkp.type, sizeof(mkp.type), "ksocket");
-	snprintf(mkp.ourhook, sizeof(mkp.ourhook), "%s", ourhook);
-	snprintf(mkp.peerhook, sizeof(mkp.peerhook), "inet/stream/tcp");
-
-	if (NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_MKPEER, &mkp,
-			sizeof(mkp)) < 0) {
-		Log(LOG_ERR, "%s(%d): Creating and connecting node path = %s error: %s",
-				__FUNCTION__, i, path, strerror(errno));
-		return -1;
-	}
-	// name    .:listen hub0-servsock
-	sprintf(path, ".:%s", ourhook);
-	sprintf(name, "%s%s", basename, SERVSOCK);
-	if (NgNameNode(srv_csock, path, "%s", name) < 0) {
-		Log(LOG_ERR, "%s(%d): Naming Node failed at path: %s : %s",
-				__FUNCTION__, i, path, strerror(errno));
-		return -1;
-	}
-
-
-	// msg servsock: bind inet/0.0.0.0:8080
-	sprintf(path, "%s%s:", server_cfg[i].name, SERVSOCK);
-    
-	Log(LOG_NOTICE, "%s(%d): Trying to bind to interface %s:%d", __FUNCTION__,
-			i, inet_ntoa(server_cfg[i].dst.sin_addr),
-			ntohs(server_cfg[i].dst.sin_port));
-
-
-
-	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_BIND,
-			&server_cfg[i].dst, sizeof(struct sockaddr_in)) < 0) {
-		Log(LOG_ERR, "%s(%d): Can't bind on address: %s:%d err: %s",
-				__FUNCTION__, i, inet_ntoa(server_cfg[i].dst.sin_addr),
-				ntohs(server_cfg[i].dst.sin_port), strerror(errno));
-		return -1;
-	}
-	// Setting REUSE_PORT
-	reuse_port(srv_csock, path);
-	// Setting tos value
-	set_tos(srv_csock, path);
-	no_delay(srv_csock, path);
-	//  msg servsock: listen 64
-	lst = LST;
-	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_LISTEN, &lst,
-			sizeof(lst)) < 0) {
-		Log(LOG_ERR, "%s(%d): msg servsock: listen 64 failed %s", __FUNCTION__,
-				i, strerror(errno));
-		return -1;
-	}
-
-
-	Log(LOG_NOTICE, "%s(%d): Starting cycle %d of ACCEPT", __FUNCTION__, i, i);
-	// msg servsock: accept
-	sprintf(path, "%s%s:", server_cfg[i].name, SERVSOCK);
-	// If not first connection - check and clear useless ksock nodes
-
-	token = NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_ACCEPT,
-			NULL, 0);
-	if ((int) token < 0 && errno != EINPROGRESS && errno != EALREADY) {
-		Log(LOG_ERR, "%s(%d): Accept Failed %s", __FUNCTION__, i,
-				strerror(errno));
-		return -1;
-	}
-	tokens[i] = token;
-	return 1;
-}
 /* Make http server to serve clients
+ * main function in this file
  * */
 void * mkserver_http(void) {
 	/*	Goals of this function in ngctl syntax
@@ -331,7 +170,169 @@ void * mkserver_http(void) {
 	return NULL;
 }
 
-int get_client_address(int node_id, int srv_csock) {
+
+
+int set_tos (char path[NG_PATHSIZ]) {
+	int tos;
+	union {
+		u_char buf[sizeof(struct ng_ksocket_sockopt) + sizeof(int)];
+		struct ng_ksocket_sockopt sockopt;
+	} sockopt_buf;
+	struct ng_ksocket_sockopt * const sockopt = &sockopt_buf.sockopt;
+	//struct ng_ksocket_sockopt *sockopt_resp = malloc(sizeof(struct ng_ksocket_sockopt) + sizeof(int));
+	//struct ng_mesg *m;
+
+	// set dscp value 32 for socket
+	sockopt->level = IPPROTO_IP;
+	sockopt->name = IP_TOS;
+	tos = IPTOS_DSCP_CS4;
+
+	memcpy(sockopt->value, &tos, sizeof(tos));
+	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
+			sockopt, sizeof(sockopt_buf) ) == -1) {
+		Log(LOG_ERR, "%s(): Sockopt set failed : %s", __FUNCTION__,
+				strerror(errno));
+		return 0;
+	}
+	return 1;
+}
+
+int reuse_port (char path[NG_PATHSIZ]) {
+	/* REUSE_ADDR and REUSE_PORT actually */
+	union {
+		u_char buf[sizeof(struct ng_ksocket_sockopt) + sizeof(int)];
+		struct ng_ksocket_sockopt sockopt;
+	} sockopt_buf;
+	struct ng_ksocket_sockopt * const sockopt = &sockopt_buf.sockopt;
+	int one = 1;
+
+	memset(&sockopt_buf, 0, sizeof(sockopt_buf));
+
+	sockopt->level = SOL_SOCKET;
+	sockopt->name = SO_REUSEADDR;
+	memcpy(sockopt->value, &one, sizeof(int));
+	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
+			sockopt, sizeof(sockopt_buf)) == -1) {
+		Log(LOG_ERR, "%s(): Sockopt set failed : %s", __FUNCTION__,
+				strerror(errno));
+		return -1;
+	}
+	sockopt->name = SO_REUSEPORT;
+	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
+				sockopt, sizeof(sockopt_buf)) == -1) {
+			Log(LOG_ERR, "%s(): Sockopt set failed : %s", __FUNCTION__,
+					strerror(errno));
+			return -1;
+	}
+	return 1;
+}
+
+int no_delay (int srv_csock, char path[NG_PATHSIZ]) {
+	/* Set tcp sockopt NO_DELAY for ksocknode */
+	union {
+		u_char buf[sizeof(struct ng_ksocket_sockopt) + sizeof(int)];
+		struct ng_ksocket_sockopt sockopt;
+	} sockopt_buf;
+	struct ng_ksocket_sockopt * const sockopt = &sockopt_buf.sockopt;
+	int one = 1;
+
+	memset(&sockopt_buf, 0, sizeof(sockopt_buf));
+
+	sockopt->level = IPPROTO_TCP;
+	sockopt->name = TCP_NODELAY;
+	memcpy(sockopt->value, &one, sizeof(int));
+	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
+			sockopt, sizeof(sockopt_buf)) == -1) {
+		Log(LOG_ERR, "%s(): Sockopt set failed : %s", __FUNCTION__,
+				strerror(errno));
+		return -1;
+	}
+	return 1;
+}
+
+int create_listening_socket(int i) {
+	/* Creating listening socket for single server */
+	char path[NG_PATHSIZ], ourhook[NG_HOOKSIZ];
+	char name[NG_NODESIZ];
+	struct ngm_mkpeer mkp;
+	int lst;
+	uint32_t token;
+	const char *basename;
+
+
+	// mkpeer . ksocket listen/stream/tcp
+	basename = server_cfg[i].name;
+
+	sprintf(path, ".");
+	sprintf(ourhook, "%s%d", "listen", i);
+	snprintf(mkp.type, sizeof(mkp.type), "ksocket");
+	snprintf(mkp.ourhook, sizeof(mkp.ourhook), "%s", ourhook);
+	snprintf(mkp.peerhook, sizeof(mkp.peerhook), "inet/stream/tcp");
+
+	if (NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_MKPEER, &mkp,
+			sizeof(mkp)) < 0) {
+		Log(LOG_ERR, "%s(%d): Creating and connecting node path = %s error: %s",
+				__FUNCTION__, i, path, strerror(errno));
+		return -1;
+	}
+	// name    .:listen hub0-servsock
+	sprintf(path, ".:%s", ourhook);
+	sprintf(name, "%s%s", basename, SERVSOCK);
+	if (NgNameNode(srv_csock, path, "%s", name) < 0) {
+		Log(LOG_ERR, "%s(%d): Naming Node failed at path: %s : %s",
+				__FUNCTION__, i, path, strerror(errno));
+		return -1;
+	}
+
+
+	// msg servsock: bind inet/0.0.0.0:8080
+	sprintf(path, "%s%s:", server_cfg[i].name, SERVSOCK);
+    
+	Log(LOG_NOTICE, "%s(%d): Trying to bind to interface %s:%d", __FUNCTION__,
+			i, inet_ntoa(server_cfg[i].dst.sin_addr),
+			ntohs(server_cfg[i].dst.sin_port));
+
+
+
+	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_BIND,
+			&server_cfg[i].dst, sizeof(struct sockaddr_in)) < 0) {
+		Log(LOG_ERR, "%s(%d): Can't bind on address: %s:%d err: %s",
+				__FUNCTION__, i, inet_ntoa(server_cfg[i].dst.sin_addr),
+				ntohs(server_cfg[i].dst.sin_port), strerror(errno));
+		return -1;
+	}
+	// Setting REUSE_PORT
+	reuse_port(srv_csock, path);
+	// Setting tos value
+	set_tos(srv_csock, path);
+	no_delay(srv_csock, path);
+	//  msg servsock: listen 64
+	lst = LST;
+	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_LISTEN, &lst,
+			sizeof(lst)) < 0) {
+		Log(LOG_ERR, "%s(%d): msg servsock: listen 64 failed %s", __FUNCTION__,
+				i, strerror(errno));
+		return -1;
+	}
+
+
+	Log(LOG_NOTICE, "%s(%d): Starting cycle %d of ACCEPT", __FUNCTION__, i, i);
+	// msg servsock: accept
+	sprintf(path, "%s%s:", server_cfg[i].name, SERVSOCK);
+	// If not first connection - check and clear useless ksock nodes
+
+	token = NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_ACCEPT,
+			NULL, 0);
+	if ((int) token < 0 && errno != EINPROGRESS && errno != EALREADY) {
+		Log(LOG_ERR, "%s(%d): Accept Failed %s", __FUNCTION__, i,
+				strerror(errno));
+		return -1;
+	}
+	tokens[i] = token;
+	return 1;
+}
+
+int get_client_address(int node_id) {
 	uint32_t token;
 	char idbuf[NG_PATHSIZ];
 	struct ng_mesg *resp;
@@ -386,7 +387,7 @@ uint32_t parse_pth(char pth[NG_PATHSIZ]) {
 }
 
 // Sending accept message to ng_ksocket node for next client be able to connect
-void send_accept(int srv_csock, int srv_num) {
+void send_accept(int srv_num) {
 	char path[NG_PATHSIZ];
 	uint32_t token;
 	memset(path, 0, sizeof(path));
