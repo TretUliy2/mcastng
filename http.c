@@ -104,7 +104,7 @@ void * mkserver_http(void) {
 	}
 	// For each server in config file we need to create listening socket
 	for (i = 0; i < srv_count; i++) {
-		create_listening_socket(i, srv_csock);
+		create_listening_socket(i);
 	}
 	// Serve clients
 	for (;;) {
@@ -131,7 +131,7 @@ void * mkserver_http(void) {
 		}
 		// Handling clients
 		sprintf(connect.pth, pth, sizeof(pth));
-		set_tos(srv_csock, pth);
+		set_tos(pth);
 		connect.srv_num = i;
 
 		handle_client(connect);
@@ -145,7 +145,7 @@ void * mkserver_http(void) {
 		server_cfg[i].c_count++;
 		primary[client_count].node_id = parse_pth(pth);
 		primary[client_count].srv_num = i;
-		get_client_address(primary[client_count].node_id, srv_csock);
+		get_client_address(primary[client_count].node_id);
 		client_count++;
 		pthread_mutex_unlock(&mutex);
 
@@ -164,7 +164,7 @@ void * mkserver_http(void) {
 			}
 		}
 
-		send_accept(srv_csock, i);
+		send_accept(i);
 		free(m);
 	}
 	return NULL;
@@ -227,7 +227,7 @@ int reuse_port (char path[NG_PATHSIZ]) {
 	return 1;
 }
 
-int no_delay (int srv_csock, char path[NG_PATHSIZ]) {
+int no_delay (char path[NG_PATHSIZ]) {
 	/* Set tcp sockopt NO_DELAY for ksocknode */
 	union {
 		u_char buf[sizeof(struct ng_ksocket_sockopt) + sizeof(int)];
@@ -302,10 +302,10 @@ int create_listening_socket(int i) {
 		return -1;
 	}
 	// Setting REUSE_PORT
-	reuse_port(srv_csock, path);
+	reuse_port(path);
 	// Setting tos value
-	set_tos(srv_csock, path);
-	no_delay(srv_csock, path);
+	set_tos(path);
+	no_delay(path);
 	//  msg servsock: listen 64
 	lst = LST;
 	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_LISTEN, &lst,
