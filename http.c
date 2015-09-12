@@ -74,7 +74,7 @@ void * mkserver_http(void) {
 	struct connect connect;
 	//struct rusage rusage;
 	char pth[NG_PATHSIZ];
-	char name[NG_NODESIZ];
+	char name[NG_PATHSIZ];
 
 	int i;
 
