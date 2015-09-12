@@ -70,7 +70,7 @@ int config(const char* filename) {
 			} else if (servers_flag == 1) {
 				if (!parse_servers_line(bufr)) {
 					fprintf(stderr, "%s: configuration error quiting\n",
-							__FUNCTION__);
+							__func__);
 					exit(EXIT_FAILURE);
 				}
 			} else {
@@ -130,7 +130,7 @@ int parse_global_line(char bufr[MAXLINE]) {
 				case 2:
 					if (!strcasestr(tmp, "=")) {
 						fprintf(stderr, "%s: Error: Format is option = value\n",
-								__FUNCTION__);
+								__func__);
 						return (FAIL);
 					}
 					break;
@@ -146,7 +146,7 @@ int parse_global_line(char bufr[MAXLINE]) {
 					default:
 						fprintf(stderr,
 								"%s: Error:  parameter = %s for unknown option\n",
-								__FUNCTION__, tmp);
+								__func__, tmp);
 						break;
 					}
 					break;
@@ -183,7 +183,7 @@ int parse_servers_line(char bufr[MAXLINE]) {
 	for (phrase = strtok(bufr, " \t"); phrase; phrase = strtok(NULL, " \t")) {
 		nw++;
 		if (phrase == NULL) {
-			fprintf(stderr, "%s: error no words in line\n", __FUNCTION__);
+			fprintf(stderr, "%s: error no words in line\n", __func__);
 			return (0);
 		}
 		if (phrase[0] == '\n') {
@@ -203,7 +203,7 @@ int parse_servers_line(char bufr[MAXLINE]) {
 		default:
 			fprintf(stderr,
 					"%s: error only two words per line permited\n error: %s",
-					__FUNCTION__, bufr);
+					__func__, bufr);
 			return (0);
 			break;
 		}
@@ -241,14 +241,14 @@ int parse_src(const char *phrase) {
 					(struct sockaddr_in *) &server_cfg[srv_count].mifip)) {
 				fprintf(stderr,
 						"%s: error : %s is not either a valid ip address or interface name\n",
-						__FUNCTION__, p);
+						__func__, p);
 				return (0);
 			}
 		}
 	} else {
 		// we should write correct value to server_cfg[srv_count].mifip here
 		if (!inet_aton(mifglob, &server_cfg[srv_count].mifip)) {
-			fprintf(stderr, "%s: error bad ip address : %s", __FUNCTION__,
+			fprintf(stderr, "%s: error bad ip address : %s", __func__,
 					mifglob);
 			return (0);
 		}
@@ -256,9 +256,9 @@ int parse_src(const char *phrase) {
 	}
 	// parse ip
 	p = strsep((char **) &phrase, ":");
-	//fprintf(stderr, "%s: parsed src_ip = %s line = %s\n", __FUNCTION__, p, buf);
+	//fprintf(stderr, "%s: parsed src_ip = %s line = %s\n", __func__, p, buf);
 	if (phrase == NULL) {
-		fprintf(stderr, "%s: Port not specified for src", __FUNCTION__);
+		fprintf(stderr, "%s: Port not specified for src", __func__);
 		return (0);
 	}
 
@@ -266,12 +266,12 @@ int parse_src(const char *phrase) {
 
 	if (!inet_aton(p, &server_cfg[srv_count].src.sin_addr)) {
 		fprintf(stderr, "%s: fatal error: %s is not a valid ip address\n",
-				__FUNCTION__, p);
+				__func__, p);
 		return (0);
 	}
 
 	/*
-	 fprintf(stderr, "%s: server_cfg[%d].src.sin_addr = %s\n", __FUNCTION__,
+	 fprintf(stderr, "%s: server_cfg[%d].src.sin_addr = %s\n", __func__,
 	 srv_count, inet_ntoa(server_cfg[srv_count].src.sin_addr));
 
 	 */
@@ -289,7 +289,7 @@ int parse_dst(const char *phrase) {
 	server_cfg[srv_count].dst.sin_family = AF_INET;
 	if (!inet_aton(p, &server_cfg[srv_count].dst.sin_addr)) {
 		fprintf(stderr, "%s: fatal error: %s is not a valid ip address\n",
-				__FUNCTION__, p);
+				__func__, p);
 		return (0);
 	}
 	server_cfg[srv_count].dst.sin_port = htons(atoi(phrase));
@@ -306,7 +306,7 @@ int get_if_addr(const char *ifname, struct sockaddr_in *ip) {
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fd == -1) {
 		fprintf(stderr, "%s: an error has occured while opening fd: %s",
-				__FUNCTION__, strerror(errno));
+				__func__, strerror(errno));
 		return (0);
 	}
 	/* I want to get an IPv4 IP address */
@@ -318,7 +318,7 @@ int get_if_addr(const char *ifname, struct sockaddr_in *ip) {
 	if (ioctl(fd, SIOCGIFADDR, &ifr) == -1) {
 		Log(LOG_ERR,
 				"%s: An error has occured while trying get ip address of interface %s : %s",
-				__FUNCTION__, ifname, strerror(errno));
+				__func__, ifname, strerror(errno));
 		return 0;
 	}
 

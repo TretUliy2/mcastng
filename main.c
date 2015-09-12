@@ -107,7 +107,7 @@ int main(int argc, char **argv) {
 	while ((ch = getopt(argc, argv, "c:dvb?")) != -1) {
 		switch (ch) {
 		case 'v':
-			printf("%s: Version: %s\n", __FUNCTION__, VERSION);
+			printf("%s: Version: %s\n", __func__, VERSION);
 			exit(EXIT_FAILURE);
 			break;
 		case '?':
@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
 		cfgfile = CFG_PATH;
 	if (config(cfgfile) < 0) {
 		if (debug == 1) {
-			fprintf(stderr, "%s: print config\n", __FUNCTION__);
+			fprintf(stderr, "%s: print config\n", __func__);
 		}
 		fprintf(stderr, "error: parsing config file failed so exit\n");
 		exit(EXIT_FAILURE);
@@ -180,10 +180,10 @@ int main(int argc, char **argv) {
 	signal(SIGQUIT, signal_handler);
 	signal(SIGUSR1, signal_handler);
 	if (debug == 1)
-		Log(LOG_DEBUG, "%s: signals done", __FUNCTION__);
+		Log(LOG_DEBUG, "%s: signals done", __func__);
 
 	if (NgMkSockNode(name, &csock, &dsock) < 0) {
-		Log(LOG_ERR, "%s: Creation of Ngsocket Failed: %s", __FUNCTION__,
+		Log(LOG_ERR, "%s: Creation of Ngsocket Failed: %s", __func__,
 				strerror(errno));
 		exit(EXIT_FAILURE);
 	}
@@ -193,19 +193,19 @@ int main(int argc, char **argv) {
 		sprintf(path, "%s:", server_cfg[i].name);
 		if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE, NGM_SHUTDOWN, NULL, 0)
 				< 0 && errno != ENOENT) {
-			Log(LOG_ERR, "%s: Error shutdowning %s: %s", path, __FUNCTION__,
+			Log(LOG_ERR, "%s: Error shutdowning %s: %s", path, __func__,
 					strerror(errno));
 		}
 	}
 
 	for (i = 0; i < srv_count; i++) {
 		if (mkhub_udp(i) == 0) {
-			Log(LOG_ERR, "%s: mkhub function died : %s", __FUNCTION__,
+			Log(LOG_ERR, "%s: mkhub function died : %s", __func__,
 					strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 	}
-	Log(LOG_NOTICE, "%s() All hubs created", __FUNCTION__);
+	Log(LOG_NOTICE, "%s() All hubs created", __func__);
 	close(csock);
 	close(dsock);
 
@@ -214,7 +214,7 @@ int main(int argc, char **argv) {
 	// Starting Http servers
 	err = pthread_create(&threads[thr], NULL, (void *) mkserver_http, NULL);
 	if (err != 0)
-		Log(LOG_ERR, "%s: Failed to create thread %d: %s", __FUNCTION__, i,
+		Log(LOG_ERR, "%s: Failed to create thread %d: %s", __func__, i,
 				strerror(err));
 
 	errno = 0;
@@ -224,7 +224,7 @@ int main(int argc, char **argv) {
 	 */
 	// Create separate netgraph socket to do the job
 	if (NgMkSockNode(pth, &cmonsock, &dmonsock) < 0) {
-		Log(LOG_ERR, "%s: Can`t create Netgraph monsock : %s", __FUNCTION__,
+		Log(LOG_ERR, "%s: Can`t create Netgraph monsock : %s", __func__,
 				strerror(errno));
 		return 0;
 	}
@@ -258,26 +258,26 @@ void exit_nice(void) {
 void signal_handler(int sig) {
 	switch (sig) {
 	case SIGINT:
-		Log(LOG_INFO, "%s: Caught SIGINT shutting down", __FUNCTION__);
+		Log(LOG_INFO, "%s: Caught SIGINT shutting down", __func__);
 		shut_fanout();
 		unlink(PIDFILE);
 		exit_nice();
 		break;
 	case SIGSEGV:
-		Log(LOG_INFO, "%s: Caught SIGSEGV shutting down", __FUNCTION__);
+		Log(LOG_INFO, "%s: Caught SIGSEGV shutting down", __func__);
 		shut_fanout();
 		unlink(PIDFILE);
 		exit_nice();
 		break;
 	case SIGTERM:
-		Log(LOG_INFO, "%s: Caught SIGTERM shutting down", __FUNCTION__);
+		Log(LOG_INFO, "%s: Caught SIGTERM shutting down", __func__);
 		shut_fanout();
 		unlink(PIDFILE);
 		exit_nice();
 		break;
 	case SIGUSR1:
 		Log(LOG_INFO, "%s: Caught SIGUSR1",
-				__FUNCTION__);
+				__func__);
 		uint32_t i, c_count;
 		c_count = client_count;
 		for ( i = 0; i < c_count; i++ ) {
@@ -298,7 +298,7 @@ void signal_handler(int sig) {
 		}
 		break;
 	default:
-		Log(LOG_INFO, "%s: %s signal catched closing all", __FUNCTION__,
+		Log(LOG_INFO, "%s: %s signal catched closing all", __func__,
 				strsignal(sig));
 		shut_fanout();
 		unlink(PIDFILE);
@@ -328,17 +328,17 @@ int client_dead(int node, int cmonsock) {
 		if (errno == ENOTCONN) {
 			syslog(LOG_INFO,
 					"%s : Socket not connected, node %s: will be shutdown",
-					__FUNCTION__, idbuf);
+					__func__, idbuf);
 			shut_node(idbuf);
 			return 1;
 		} else if (errno == ENOENT) {
-			syslog(LOG_NOTICE, "%s (): Node already closed %s", __FUNCTION__,
+			syslog(LOG_NOTICE, "%s (): Node already closed %s", __func__,
 					idbuf);
 			return 1;
 		} else {
 			syslog(LOG_ERR,
 					"%s (): An error has occured while getpeername from node: %s, %s",
-					__FUNCTION__,  idbuf, strerror(errno));
+					__func__,  idbuf, strerror(errno));
 			return 0;
 		}
 	}
@@ -348,7 +348,7 @@ int client_dead(int node, int cmonsock) {
 
 	peername = (struct sockaddr_in *)resp->data;
 	Log(LOG_NOTICE, "%s(): Peer %s:%d still connected",
-			__FUNCTION__, inet_ntoa(peername->sin_addr), ntohs(peername->sin_port));
+			__func__, inet_ntoa(peername->sin_addr), ntohs(peername->sin_port));
 	free(resp);
 	return 0;
 }
@@ -373,16 +373,16 @@ int check_and_clear(int cmonsock) {
 	c_count = client_count;
 	for (i = 0; i < c_count; i++) {
 		Log(LOG_INFO, "%s(): primary[%d].node = [%08x]:",
-				__FUNCTION__, i, primary[i].node_id);
+				__func__, i, primary[i].node_id);
 		if (client_dead(primary[i].node_id, cmonsock)) {
 			// Dead node detected
-			Log(LOG_INFO, "%s() disconnected client %s:%d", __FUNCTION__,
+			Log(LOG_INFO, "%s() disconnected client %s:%d", __func__,
 					inet_ntoa(primary[i].addr.sin_addr), ntohs(primary[i].addr.sin_port));
 			int srv_num = primary[i].srv_num;
 			client_count--;
 			if (--server_cfg[srv_num].c_count == 0) {
 				Log(LOG_ERR, "%s() Last client on server_num %d dropping group",
-						__FUNCTION__, srv_num);
+						__func__, srv_num);
 				drop_mgroup(srv_num);
 				server_cfg[srv_num].streaming = 0;
 			}
@@ -433,7 +433,7 @@ int shut_clients(int srv_num, int cmonsock) {
 			0);
 	if ((int) token < 0) {
 		Log(LOG_ERR, "%s(%d): Filed to get hooklist from node %s: %s",
-				__FUNCTION__, srv_num, server_cfg[srv_num].name,
+				__func__, srv_num, server_cfg[srv_num].name,
 				strerror(errno));
 		return EXIT_FAILURE;
 	}
@@ -444,7 +444,7 @@ int shut_clients(int srv_num, int cmonsock) {
 		}
 		if (NgAllocRecvMsg(cmonsock, &resp, NULL) < 0) {
 			Log(LOG_ERR, "%s(%d): Failed to receive hooklist from hub: %s",
-					__FUNCTION__, srv_num, strerror(errno));
+					__func__, srv_num, strerror(errno));
 			return EXIT_FAILURE;
 		}
 	} while (resp->header.token != token);
@@ -458,21 +458,21 @@ int shut_clients(int srv_num, int cmonsock) {
 			if (!*peer->name) {
 				//snprintf(peer->name, sizeof(peer->name), "%s", UNNAMED);
 				snprintf(peername, strlen(UNNAMED), "%s", UNNAMED);
-				Log(LOG_DEBUG, "%s(%d): peername = %s", __FUNCTION__, srv_num,
+				Log(LOG_DEBUG, "%s(%d): peername = %s", __func__, srv_num,
 						peername);
 			} else {
 				snprintf(peername, strlen(peer->name), "%s", peer->name);
-				Log(LOG_DEBUG, "%s(%d): peername = %s", __FUNCTION__, srv_num,
+				Log(LOG_DEBUG, "%s(%d): peername = %s", __func__, srv_num,
 						peername);
 			}
 			Log(LOG_NOTICE, "%s(%d): number of connected hooks = %d",
-					__FUNCTION__, srv_num, ninfo->hooks);
+					__func__, srv_num, ninfo->hooks);
 			snprintf(idbuf, sizeof(idbuf), "[%08x]:", peer->id);
 			if ((strcmp(peer->type, "ksocket") == 0)
 					&& (strcmp(peername, UNNAMED) == 0)) {
 				Log(LOG_NOTICE,
 						"%s(%d): peer->name = %s peer->type = %s, peer->id = [%08x]:",
-						__FUNCTION__, srv_num, peername, peer->type, peer->id);
+						__func__, srv_num, peername, peer->type, peer->id);
 				shut_node(idbuf);
 			}
 		}
@@ -491,7 +491,7 @@ void shut_fanout(void) {
 		sprintf(path, "%s:", server_cfg[i].name);
 		if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE, NGM_SHUTDOWN, NULL, 0)
 				< 0) {
-			Log(LOG_ERR, "%s(): Error shutdowning %s: %s", __FUNCTION__, path,
+			Log(LOG_ERR, "%s(): Error shutdowning %s: %s", __func__, path,
 					strerror(errno));
 			exit_nice();
 		}
@@ -513,7 +513,7 @@ int shut_node(char path[NG_PATHSIZ]) {
 		sprintf(name, "%s:", name);
 	}
 	if (NgSendMsg(csock, name, NGM_GENERIC_COOKIE, NGM_SHUTDOWN, NULL, 0) < 0) {
-		Log(LOG_INFO, "%s(): Error shutdowning fanout: %s\n", __FUNCTION__,
+		Log(LOG_INFO, "%s(): Error shutdowning fanout: %s\n", __func__,
 				strerror(errno));
 		return (0);
 	}
@@ -549,39 +549,39 @@ void daemonize(void) {
 	pid = fork();
 
 	if (pid < 0) {
-		fprintf(stderr, "%s(): Fork Filed: %s\n", __FUNCTION__,
+		fprintf(stderr, "%s(): Fork Filed: %s\n", __func__,
 				strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 	// If parent process - close
 	if (pid > 0) {
-		//Log(LOG_NOTICE, "%s(): Closing parent", __FUNCTION__);
+		//Log(LOG_NOTICE, "%s(): Closing parent", __func__);
 		exit(EXIT_SUCCESS);
 	}
 	umask(0);
 	// Create SID for the child process
 	sid = setsid();
 	if (sid < 0) {
-		fprintf(stderr, "%s(): setsid failed: %s\n", __FUNCTION__,
+		fprintf(stderr, "%s(): setsid failed: %s\n", __func__,
 				strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 	if ((fp = fopen(pidfile, "w")) == NULL) {
-		Log(LOG_ERR, "%s(): Can`t write pid file: %s", __FUNCTION__,
+		Log(LOG_ERR, "%s(): Can`t write pid file: %s", __func__,
 				strerror(errno));
 	} else {
 		fprintf(fp, "%d", getpid());
 		fclose(fp);
 	}
 	if ((chdir("/")) < 0) {
-		fprintf(stderr, "%s(): chdir failed: %s\n", __FUNCTION__,
+		fprintf(stderr, "%s(): chdir failed: %s\n", __func__,
 				strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 
 	/*
 	 Log(LOG_NOTICE, "%s(): Starting relaying-ng pid = %d sid = %d",
-	 __FUNCTION__, getpid(), sid);
+	 __func__, getpid(), sid);
 	 */
 
 	/* close out the standart file descriptors */
@@ -589,7 +589,7 @@ void daemonize(void) {
 	close(STDOUT_FILENO);
 	close(STDERR_FILENO);
 	daemonized = 1;
-	Log(LOG_NOTICE, "%s(): Daemon Started", __FUNCTION__);
+	Log(LOG_NOTICE, "%s(): Daemon Started", __func__);
 
 }
 // Helper function you can use:
@@ -607,7 +607,7 @@ void print_config(void) {
 
 		Log(LOG_DEBUG,
 				"%s: server_cfg[%d] src.ip = %s src.port = %d dst.ip = %s dst_port = %d",
-				__FUNCTION__, i, src_ip, ntohs(server_cfg[i].src.sin_port),
+				__func__, i, src_ip, ntohs(server_cfg[i].src.sin_port),
 				dst_ip, ntohs(server_cfg[i].dst.sin_port));
 	}
 }

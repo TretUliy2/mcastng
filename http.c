@@ -98,7 +98,7 @@ void * mkserver_http(void) {
 	// Naming Control socket node
 	sprintf(name, "srv-csock-%d", getpid());
 	if (NgMkSockNode(name, &srv_csock, &srv_dsock) < 0) {
-		Log(LOG_ERR, "%s(): Error Creating ng_socket: %s : %s", __FUNCTION__,
+		Log(LOG_ERR, "%s(): Error Creating ng_socket: %s : %s", __func__,
 				name, strerror(errno));
 		return NULL;
 	}
@@ -111,7 +111,7 @@ void * mkserver_http(void) {
 		int found = 0;
 		if (NgAllocRecvMsg(srv_csock, &m, pth) < 0) {
 			Log(LOG_ERR, "%s(%d): Error receiving response from ksocket %s",
-					__FUNCTION__, i, strerror(errno));
+					__func__, i, strerror(errno));
 			shut_fanout();
 			exit_nice();
 			return NULL;
@@ -125,7 +125,7 @@ void * mkserver_http(void) {
 		}
 
 		if (found != 1) {
-			Log(LOG_ERR, "%s(%d): token %d not found ", __FUNCTION__, i,
+			Log(LOG_ERR, "%s(%d): token %d not found ", __func__, i,
 					m->header.token);
 			continue;
 		}
@@ -138,7 +138,7 @@ void * mkserver_http(void) {
 
 		Log(LOG_INFO,
 				"%s(%d): We have a new client connection node: %s streaming = %d",
-				__FUNCTION__, i, pth, server_cfg[i].streaming);
+				__func__, i, pth, server_cfg[i].streaming);
 		// Change shared data structures
 
 		pthread_mutex_lock(&mutex);
@@ -152,7 +152,7 @@ void * mkserver_http(void) {
 		if (server_cfg[i].streaming == 0) {
 			Log(LOG_NOTICE,
 					"%s(%d): no connected clients ADD GROUP MEMBERSHIP needed",
-					__FUNCTION__, i);
+					__func__, i);
 			if (add_mgroup(i) == 0) {
 				pthread_mutex_lock(&mutex);
 				server_cfg[i].streaming = 1;
@@ -160,7 +160,7 @@ void * mkserver_http(void) {
 			} else {
 				Log(LOG_ERR,
 						"%s(%d): Error has occured while add_mgroup do nothing",
-						__FUNCTION__, i);
+						__func__, i);
 			}
 		}
 
@@ -190,7 +190,7 @@ int set_tos (char path[NG_PATHSIZ]) {
 	memcpy(sockopt->value, &tos, sizeof(tos));
 	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
 			sockopt, sizeof(sockopt_buf) ) == -1) {
-		Log(LOG_ERR, "%s(): Sockopt set failed : %s", __FUNCTION__,
+		Log(LOG_ERR, "%s(): Sockopt set failed : %s", __func__,
 				strerror(errno));
 		return 0;
 	}
@@ -213,14 +213,14 @@ int reuse_port (char path[NG_PATHSIZ]) {
 	memcpy(sockopt->value, &one, sizeof(int));
 	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
 			sockopt, sizeof(sockopt_buf)) == -1) {
-		Log(LOG_ERR, "%s(): Sockopt set failed : %s", __FUNCTION__,
+		Log(LOG_ERR, "%s(): Sockopt set failed : %s", __func__,
 				strerror(errno));
 		return -1;
 	}
 	sockopt->name = SO_REUSEPORT;
 	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
 				sockopt, sizeof(sockopt_buf)) == -1) {
-			Log(LOG_ERR, "%s(): Sockopt set failed : %s", __FUNCTION__,
+			Log(LOG_ERR, "%s(): Sockopt set failed : %s", __func__,
 					strerror(errno));
 			return -1;
 	}
@@ -243,7 +243,7 @@ int no_delay (char path[NG_PATHSIZ]) {
 	memcpy(sockopt->value, &one, sizeof(int));
 	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
 			sockopt, sizeof(sockopt_buf)) == -1) {
-		Log(LOG_ERR, "%s(): Sockopt set failed : %s", __FUNCTION__,
+		Log(LOG_ERR, "%s(): Sockopt set failed : %s", __func__,
 				strerror(errno));
 		return -1;
 	}
@@ -272,7 +272,7 @@ int create_listening_socket(int i) {
 	if (NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_MKPEER, &mkp,
 			sizeof(mkp)) < 0) {
 		Log(LOG_ERR, "%s(%d): Creating and connecting node path = %s error: %s",
-				__FUNCTION__, i, path, strerror(errno));
+				__func__, i, path, strerror(errno));
 		return -1;
 	}
 	// name    .:listen hub0-servsock
@@ -280,7 +280,7 @@ int create_listening_socket(int i) {
 	sprintf(name, "%s%s", basename, SERVSOCK);
 	if (NgNameNode(srv_csock, path, "%s", name) < 0) {
 		Log(LOG_ERR, "%s(%d): Naming Node failed at path: %s : %s",
-				__FUNCTION__, i, path, strerror(errno));
+				__func__, i, path, strerror(errno));
 		return -1;
 	}
 
@@ -288,7 +288,7 @@ int create_listening_socket(int i) {
 	// msg servsock: bind inet/0.0.0.0:8080
 	sprintf(path, "%s%s:", server_cfg[i].name, SERVSOCK);
     
-	Log(LOG_NOTICE, "%s(%d): Trying to bind to interface %s:%d", __FUNCTION__,
+	Log(LOG_NOTICE, "%s(%d): Trying to bind to interface %s:%d", __func__,
 			i, inet_ntoa(server_cfg[i].dst.sin_addr),
 			ntohs(server_cfg[i].dst.sin_port));
 
@@ -297,7 +297,7 @@ int create_listening_socket(int i) {
 	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_BIND,
 			&server_cfg[i].dst, sizeof(struct sockaddr_in)) < 0) {
 		Log(LOG_ERR, "%s(%d): Can't bind on address: %s:%d err: %s",
-				__FUNCTION__, i, inet_ntoa(server_cfg[i].dst.sin_addr),
+				__func__, i, inet_ntoa(server_cfg[i].dst.sin_addr),
 				ntohs(server_cfg[i].dst.sin_port), strerror(errno));
 		return -1;
 	}
@@ -310,13 +310,13 @@ int create_listening_socket(int i) {
 	lst = LST;
 	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_LISTEN, &lst,
 			sizeof(lst)) < 0) {
-		Log(LOG_ERR, "%s(%d): msg servsock: listen 64 failed %s", __FUNCTION__,
+		Log(LOG_ERR, "%s(%d): msg servsock: listen 64 failed %s", __func__,
 				i, strerror(errno));
 		return -1;
 	}
 
 
-	Log(LOG_NOTICE, "%s(%d): Starting cycle %d of ACCEPT", __FUNCTION__, i, i);
+	Log(LOG_NOTICE, "%s(%d): Starting cycle %d of ACCEPT", __func__, i, i);
 	// msg servsock: accept
 	sprintf(path, "%s%s:", server_cfg[i].name, SERVSOCK);
 	// If not first connection - check and clear useless ksock nodes
@@ -324,7 +324,7 @@ int create_listening_socket(int i) {
 	token = NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_ACCEPT,
 			NULL, 0);
 	if ((int) token < 0 && errno != EINPROGRESS && errno != EALREADY) {
-		Log(LOG_ERR, "%s(%d): Accept Failed %s", __FUNCTION__, i,
+		Log(LOG_ERR, "%s(%d): Accept Failed %s", __func__, i,
 				strerror(errno));
 		return -1;
 	}
@@ -346,16 +346,16 @@ int get_client_address(int node_id) {
 		if (errno == ENOTCONN) {
 			syslog(LOG_INFO,
 					"%s : Socket not connected, node %s",
-					__FUNCTION__, idbuf);
+					__func__, idbuf);
 			return 1;
 		} else if (errno == ENOENT) {
-			syslog(LOG_NOTICE, "%s (): Node already closed %s", __FUNCTION__,
+			syslog(LOG_NOTICE, "%s (): Node already closed %s", __func__,
 					idbuf);
 			return 1;
 		} else {
 			syslog(LOG_ERR,
 					"%s (): An error has occured while getpeername from node: %s, %s",
-					__FUNCTION__,  idbuf, strerror(errno));
+					__func__,  idbuf, strerror(errno));
 			return 0;
 		}
 	}
@@ -369,7 +369,7 @@ int get_client_address(int node_id) {
 	primary[client_count].addr.sin_addr = peername->sin_addr;
 	primary[client_count].addr.sin_port = peername->sin_port;
 	Log(LOG_NOTICE, "%s(): serving new client connection from %s:%d",
-			__FUNCTION__, inet_ntoa(peername->sin_addr), ntohs(peername->sin_port));
+			__func__, inet_ntoa(peername->sin_addr), ntohs(peername->sin_port));
 	free(resp);
 	return 1;
 }
@@ -396,13 +396,13 @@ void send_accept(int srv_num) {
 	token = NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_ACCEPT,
 	NULL, 0);
 	if ((int) token < 0 && errno != EINPROGRESS && errno != EALREADY) {
-		Log(LOG_ERR, "%s(%d): Accept Failed %s", __FUNCTION__, srv_num,
+		Log(LOG_ERR, "%s(%d): Accept Failed %s", __func__, srv_num,
 				strerror(errno));
 	}
-	Log(LOG_NOTICE, "%s(%d): Accept sent  to [%s] new token = %d", __FUNCTION__,
+	Log(LOG_NOTICE, "%s(%d): Accept sent  to [%s] new token = %d", __func__,
 			srv_num, path, token);
 	tokens[srv_num] = token;
-	Log(LOG_NOTICE, "%s(%d): Accept sent  to [%s] new token = %d", __FUNCTION__,
+	Log(LOG_NOTICE, "%s(%d): Accept sent  to [%s] new token = %d", __func__,
 			srv_num, path, token);
 }
 /* Function to handle each client connection
@@ -449,7 +449,7 @@ int handle_client(struct connect connect) {
 			sizeof(mkp)) < 0) {
 		Log(LOG_ERR,
 				"%s(%d): mkpeer %s tee %s %s Creating and connecting node error: %s",
-				__FUNCTION__, srv_num, path, ourhook, peerhook,
+				__func__, srv_num, path, ourhook, peerhook,
 				strerror(errno));
 		return 0;
 	}
@@ -461,7 +461,7 @@ int handle_client(struct connect connect) {
 
 	if (NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_CONNECT, &con,
 			sizeof(con)) < 0 && errno != EISCONN) {
-		Log(LOG_ERR, "%s(%d): connect %s %s %s %s : %s", __FUNCTION__, srv_num,
+		Log(LOG_ERR, "%s(%d): connect %s %s %s %s : %s", __func__, srv_num,
 				path, con.path, con.ourhook, con.peerhook, strerror(errno));
 		return 0;
 	}
@@ -472,7 +472,7 @@ int handle_client(struct connect connect) {
 	memcpy(tmp, http_replay, strlen(http_replay));
 	sprintf(ourhook, "l2r");
 	if (NgSendData(srv_dsock, ourhook, tmp, strlen((const char *) tmp)) < 0) {
-		Log(LOG_ERR, "%s(%d): Error sending a message to %s: %s", __FUNCTION__,
+		Log(LOG_ERR, "%s(%d): Error sending a message to %s: %s", __func__,
 				srv_num, ourhook, strerror(errno));
 		shut_fanout();
 		return 0;
@@ -489,7 +489,7 @@ int handle_client(struct connect connect) {
 
 	if (NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_CONNECT, &con,
 			sizeof(con)) < 0 && errno != EISCONN) {
-		Log(LOG_ERR, "%s(%d): connect %s %s %s %s : %s", __FUNCTION__, srv_num,
+		Log(LOG_ERR, "%s(%d): connect %s %s %s %s : %s", __func__, srv_num,
 				path, con.path, con.ourhook, con.peerhook, strerror(errno));
 		return 0;
 	}
@@ -497,7 +497,7 @@ int handle_client(struct connect connect) {
 	sprintf(path, "%s", ourhook);
 	if (NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_SHUTDOWN, NULL, 0)
 			< 0) {
-		Log(LOG_ERR, "%s(%d): Failed to shutdown %s: %s", __FUNCTION__, srv_num,
+		Log(LOG_ERR, "%s(%d): Failed to shutdown %s: %s", __func__, srv_num,
 				path, strerror(errno));
 		return (EXIT_FAILURE);
 	}
