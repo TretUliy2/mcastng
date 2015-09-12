@@ -78,14 +78,8 @@ void * mkserver_http(void) {
 
 	int i;
 
-	union {
-		u_char buf[sizeof(struct ng_mesg) + sizeof(struct sockaddr)];
-		struct ng_mesg reply;
-	} ugetsas;
 
 	m = NULL;
-
-	memset(&ugetsas, 0, sizeof(ugetsas));
 
 	memset(pth, 0, sizeof(pth));
 	memset(&con, 0, sizeof(con));

@@ -6,7 +6,7 @@
 #include	<stdio.h>
 #include	<netgraph.h>
 #include	<stdlib.h>
-#include <malloc_np.h>
+#include 	<malloc_np.h>
 #include	<err.h>
 #include	<errno.h>
 #include	<sys/types.h>
