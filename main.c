@@ -369,6 +369,7 @@ int client_dead(int node, int cmonsock) {
         Log(LOG_INFO, "%s:%d detected socket with state = %s which is near to close, shuting node %s", 
                         __FILE__, __LINE__, tcpstates[tcp_state], idbuf);
 		shut_node(idbuf);
+        return 1;
     }
 	return 0;
 }
