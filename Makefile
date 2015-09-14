@@ -14,5 +14,6 @@ MAN=
 
 afterinstall: 
 	install -o root -g wheel -m 555   rc/mcastng /usr/local/etc/rc.d
+	install -o root -g wheel -m 555   mcastng.cfg-sample /usr/local/etc
 
 .include <bsd.prog.mk>
