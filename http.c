@@ -478,7 +478,7 @@ int handle_client(struct connect connect) {
 	 */
 	sprintf(con.path, "%s:", base_name);
 	sprintf(con.ourhook, "right");
-	sprintf(con.peerhook, "Client%d", server_cfg[srv_num].c_count);
+	sprintf(con.peerhook, "0x%s", pth);
 	// Our hook still = "l2r"
 	sprintf(path, "%s", ourhook);
 
@@ -489,7 +489,8 @@ int handle_client(struct connect connect) {
 		return 0;
 	}
 	/* shutdown l2r */
-	sprintf(path, "%s", ourhook);
+    memset(path, 0, sizeof(path));
+	sprintf(path, "l2r");
 	if (NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_SHUTDOWN, NULL, 0)
 			< 0) {
 		Log(LOG_ERR, "%s(%d): Failed to shutdown %s: %s", __func__, srv_num,
