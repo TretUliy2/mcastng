@@ -393,8 +393,6 @@ void send_accept(int srv_num) {
 		Log(LOG_ERR, "%s(%d): Accept Failed %s", __func__, srv_num,
 				strerror(errno));
 	}
-	Log(LOG_NOTICE, "%s(%d): Accept sent  to [%s] new token = %d", __func__,
-			srv_num, path, token);
 	tokens[srv_num] = token;
 	Log(LOG_NOTICE, "%s(%d): Accept sent  to [%s] new token = %d", __func__,
 			srv_num, path, token);

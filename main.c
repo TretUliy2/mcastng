@@ -42,6 +42,12 @@
 #define		UNNAMED	"<unnamed>"
 #define		Log_IDENT	"mcastng"
 
+static char const * const tcpstates[] = {
+	"CLOSED",	"LISTEN",	"SYN_SENT",	"SYN_RCVD",
+	"ESTABLISHED",	"CLOSE_WAIT",	"FIN_WAIT_1",	"CLOSING",
+	"LAST_ACK",	"FIN_WAIT_2",	"TIME_WAIT",
+};
+
 // Internal Functions
 void shut_fanout(void);
 void usage(const char *progname);
@@ -352,13 +358,16 @@ int client_dead(int node, int cmonsock) {
 	}
 
 	peername = (struct sockaddr_in *)resp->data;
-	Log(LOG_NOTICE, "%s(): Peer %s:%d still connected",
+	/*
+    Log(LOG_NOTICE, "%s(): Peer %s:%d still connected",
 			__func__, inet_ntoa(peername->sin_addr), ntohs(peername->sin_port));
-	free(resp);
+	*/
+    free(resp);
     /* Checking if tcpi_state in struct tcp_info */
-    if ( get_tcp_state(idbuf)  == 5 ) {
-        Log(LOG_INFO, "%s:%d detected socket with state = 5 which is TCPS_CLOSE_WAIT shuting node %s", 
-                        __FILE__, __LINE__, idbuf);
+    int tcp_state = get_tcp_state(idbuf);
+    if ( tcp_state >= 5 && tcp_state <= 10 ) {
+        Log(LOG_INFO, "%s:%d detected socket with state = %s which is near to close, shuting node %s", 
+                        __FILE__, __LINE__, tcpstates[tcp_state], idbuf);
 		shut_node(idbuf);
     }
 	return 0;
@@ -411,8 +420,7 @@ int check_and_clear(int cmonsock) {
 	pthread_mutex_lock(&mutex);
 	c_count = client_count;
 	for (i = 0; i < c_count; i++) {
-		Log(LOG_INFO, "%s(): primary[%d].node = [%08x]:",
-				__func__, i, primary[i].node_id);
+		//Log(LOG_INFO, "%s(): primary[%d].node = [%08x]:", __func__, i, primary[i].node_id);
 		if (client_dead(primary[i].node_id, cmonsock)) {
 			// Dead node detected
 			Log(LOG_INFO, "%s() disconnected client %s:%d", __func__,
