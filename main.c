@@ -330,23 +330,24 @@ int client_dead(int node, int cmonsock) {
 			NGM_KSOCKET_GETPEERNAME, NULL, 0);
 	if ((int) token == -1) {
 		if (errno == ENOTCONN) {
-			syslog(LOG_INFO,
+			Log(LOG_INFO,
 					"%s : Socket not connected, node %s: will be shutdown",
 					__func__, idbuf);
 			shut_node(idbuf);
 			return 1;
 		} else if (errno == ENOENT) {
-			syslog(LOG_NOTICE, "%s (): Node already closed %s", __func__,
+			Log(LOG_NOTICE, "%s (): Node already closed %s", __func__,
 					idbuf);
 			return 1;
 		} else {
-			syslog(LOG_ERR,
+			Log(LOG_ERR,
 					"%s (): An error has occured while getpeername from node: %s, %s",
 					__func__,  idbuf, strerror(errno));
 			return 0;
 		}
 	}
 	if (NgAllocRecvMsg(cmonsock, &resp, NULL) < 0) {
+        Log(LOG_ERR, "%s:%d Error while allocating message: %s", __FILE__, __LINE__, strerror(errno));
 		return 0;
 	}
 
@@ -356,6 +357,8 @@ int client_dead(int node, int cmonsock) {
 	free(resp);
     /* Checking if tcpi_state in struct tcp_info */
     if ( get_tcp_state(idbuf)  == 5 ) {
+        Log(LOG_INFO, "%s:%d detected socket with state = 5 which is TCPS_CLOSE_WAIT shuting node %s", 
+                        __FILE__, __LINE__, idbuf);
 		shut_node(idbuf);
     }
 	return 0;
