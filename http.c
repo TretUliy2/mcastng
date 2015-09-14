@@ -435,7 +435,7 @@ int handle_client(struct connect connect) {
 	sprintf(mkp.type, "%s", "tee");
 	sprintf(mkp.ourhook, "%s", ourhook);
 	sprintf(mkp.peerhook, "%s", peerhook);
-    if (NgNameNode(srv_csock, pth, "client%d", server_cfg[srv_num].c_count) < 0 ) {
+    if (NgNameNode(srv_csock, pth, "client%d-%d", srv_num, server_cfg[srv_num].c_count) < 0 ) {
         Log(LOG_ERR, "%s:%d Error naming node %s - %s", __FILE__, __LINE__, pth, strerror(errno));
     }
 	if (NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_MKPEER, &mkp,
