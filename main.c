@@ -18,6 +18,8 @@
 #include	<netgraph/ng_ksocket.h>
 #include	<netgraph/ng_hub.h>
 #include	<netinet/in.h>
+#include	<netinet/tcp.h>
+#include	<netinet/tcp_fsm.h>
 #include	<netdb.h>
 #include	<string.h>
 #include	<strings.h>
@@ -51,6 +53,7 @@ int shut_clients(int srv_num, int cmonsock);
 int client_dead(int node, int cmonsock);
 int shut_node(char path[NG_PATHSIZ]);
 void print_config(void);
+int get_tcp_state (char path[NG_PATHSIZ]);
 
 // External Functions
 extern int mkhub_udp(int srv_num);
@@ -320,6 +323,7 @@ int client_dead(int node, int cmonsock) {
 	struct ng_mesg *resp;
 	struct sockaddr_in *peername;
 
+    /* Checking if peername is can be fetched from socket */
 	memset (idbuf, 0, sizeof(idbuf));
 	snprintf(idbuf, sizeof(idbuf), "[%08x]:", node);
 	token = NgSendMsg(cmonsock, idbuf, NGM_KSOCKET_COOKIE,
@@ -350,8 +354,40 @@ int client_dead(int node, int cmonsock) {
 	Log(LOG_NOTICE, "%s(): Peer %s:%d still connected",
 			__func__, inet_ntoa(peername->sin_addr), ntohs(peername->sin_port));
 	free(resp);
+    /* Checking if tcpi_state in struct tcp_info */
+    if ( get_tcp_state(idbuf)  == 5 ) {
+		shut_node(idbuf);
+    }
 	return 0;
 }
+
+int get_tcp_state (char path[NG_PATHSIZ]) {
+    struct ng_ksocket_sockopt *sockopt_resp = malloc(sizeof(struct ng_ksocket_sockopt) + sizeof(int));
+    struct ng_mesg *resp;
+    int tcpi_state;
+    memset(sockopt_resp, 0, sizeof(struct ng_ksocket_sockopt) + sizeof(int));
+
+    sockopt_resp->level = IPPROTO_TCP;
+    sockopt_resp->name = TCP_INFO;
+    //NgSetDebug(3);
+    if ( NgSendMsg(csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_GETOPT,
+                            sockopt_resp, sizeof(*sockopt_resp)) == -1 ) {
+        Log(LOG_ERR, "Error while trying to get sockopt from %s - %s",
+                        path, strerror(errno));
+        return -1;
+    }
+    if ( NgAllocRecvMsg(csock, &resp, 0 ) < 0 ) {
+        Log(LOG_ERR, "Error while trying to get message from getsockopt: %s", strerror(errno));
+        return -1;
+    }
+    struct tcp_info *info;
+    info = (struct tcp_info *)((struct ng_ksocket_sockopt *)resp->data)->value;
+    tcpi_state = info->tcpi_state;
+    free(sockopt_resp);
+    free(resp);
+    return tcpi_state;
+}
+
 /* Get peer name to define is ksocket connected to client or not
  */
 int check_and_clear(int cmonsock) {
