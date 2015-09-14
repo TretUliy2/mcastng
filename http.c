@@ -136,7 +136,6 @@ void * mkserver_http(void) {
 		// Change shared data structures
 
 		pthread_mutex_lock(&mutex);
-		server_cfg[i].c_count++;
 		primary[client_count].node_id = parse_pth(pth);
 		primary[client_count].srv_num = i;
 		get_client_address(primary[client_count].node_id);
@@ -493,5 +492,8 @@ int handle_client(struct connect connect) {
 				path, strerror(errno));
 		return (EXIT_FAILURE);
 	}
+	pthread_mutex_lock(&mutex);
+	server_cfg[connect.srv_num].c_count++;
+	pthread_mutex_unlock(&mutex);
 	return (EXIT_SUCCESS);
 }
