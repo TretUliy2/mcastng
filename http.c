@@ -435,14 +435,16 @@ int handle_client(struct connect connect) {
 	sprintf(mkp.type, "%s", "tee");
 	sprintf(mkp.ourhook, "%s", ourhook);
 	sprintf(mkp.peerhook, "%s", peerhook);
+    /*
     if (NgNameNode(srv_csock, pth, "client%d-%d", srv_num, server_cfg[srv_num].c_count) < 0 ) {
         Log(LOG_ERR, "%s:%d Error naming node %s - %s", __FILE__, __LINE__, pth, strerror(errno));
     }
+    */
 	if (NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_MKPEER, &mkp,
 			sizeof(mkp)) < 0) {
 		Log(LOG_ERR,
-				"%s(%d): mkpeer %s tee %s %s Creating and connecting node error: %s",
-				__func__, srv_num, path, ourhook, peerhook,
+				"%s:%d mkpeer %s tee %s %s Creating and connecting node error: %s",
+				__FILE__, __LINE__, srv_num, path, ourhook, peerhook,
 				strerror(errno));
 		return 0;
 	}
