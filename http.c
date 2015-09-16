@@ -48,6 +48,7 @@ int reuse_port(char path[NG_PATHSIZ]);
 int no_delay(char path[NG_PATHSIZ]);
 int get_client_address(int node_id);
 
+int new_handle_client( struct connect connect );
 /* Global variables */
 
 static int srv_csock, srv_dsock;
@@ -396,6 +397,14 @@ void send_accept(int srv_num) {
 	Log(LOG_NOTICE, "%s(%d): Accept sent  to [%s] new token = %d", __func__,
 			srv_num, path, token);
 }
+/* New moduled function to handle client connection
+ * 
+ * */
+int new_handle_client( struct connect connect )  {
+
+    return 1;    
+}
+
 /* Function to handle each client connection
  *
  * */
@@ -416,8 +425,8 @@ int handle_client(struct connect connect) {
 	struct ngm_mkpeer mkp;
 	char base_name[NG_PATHSIZ];
 	char pth[NG_PATHSIZ], path[NG_PATHSIZ];
-	char ourhook[NG_PATHSIZ], peerhook[NG_PATHSIZ];
-
+    char ourhook[NG_HOOKSIZ];
+    
 	u_char tmp[200]; // Buffer for http replay
 	int srv_num;
 
@@ -428,13 +437,10 @@ int handle_client(struct connect connect) {
 	memcpy(pth, connect.pth, sizeof(pth));
 	memcpy(base_name, server_cfg[srv_num].name, sizeof(base_name));
 	/* mkpeer . tee l2r left2right  */
-	sprintf(path, ".");
-	sprintf(ourhook, "l2r");
-	sprintf(peerhook, "left2right");
-
-	sprintf(mkp.type, "%s", "tee");
-	sprintf(mkp.ourhook, "%s", ourhook);
-	sprintf(mkp.peerhook, "%s", peerhook);
+	snprintf(path, sizeof(path), ".");
+	snprintf(mkp.type, sizeof(mkp.type), "%s", "tee");
+	snprintf(mkp.ourhook, sizeof(mkp.ourhook), "%s", "l2r");
+	snprintf(mkp.peerhook, sizeof(mkp.peerhook), "%s", "left2right");
     /*
     if (NgNameNode(srv_csock, pth, "client%d-%d", srv_num, server_cfg[srv_num].c_count) < 0 ) {
         Log(LOG_ERR, "%s:%d Error naming node %s - %s", __FILE__, __LINE__, pth, strerror(errno));
@@ -444,19 +450,20 @@ int handle_client(struct connect connect) {
 			sizeof(mkp)) < 0) {
 		Log(LOG_ERR,
 				"%s:%d mkpeer %s tee %s %s Creating and connecting node error: %s",
-				__FILE__, __LINE__, srv_num, path, ourhook, peerhook,
+				__FILE__, __LINE__, srv_num, path, mkp.ourhook, mkp.peerhook,
 				strerror(errno));
 		return 0;
 	}
 	/* connect l2r [1d]: left ksockhook */
-	sprintf(path, "%s", "l2r");
-	sprintf(con.path, "%s", pth);
-	sprintf(con.ourhook, "left");
-	sprintf(con.peerhook, "ksockhook");
+	snprintf(path, sizeof(path), "%s", "l2r");
+	snprintf(con.path, sizeof(con.path), "%s", pth);
+	snprintf(con.ourhook, sizeof(con.ourhook), "left");
+	snprintf(con.peerhook, sizeof(con.peerhook), "ksockhook");
 
 	if (NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_CONNECT, &con,
 			sizeof(con)) < 0 && errno != EISCONN) {
-		Log(LOG_ERR, "%s(%d): connect %s %s %s %s : %s", __func__, srv_num,
+		Log(LOG_ERR, "%s:%d %s(%d): connect %s %s %s %s : %s", 
+                        __FILE__, __LINE__, __func__, srv_num,
 				path, con.path, con.ourhook, con.peerhook, strerror(errno));
 		return 0;
 	}
@@ -465,10 +472,11 @@ int handle_client(struct connect connect) {
 	 * Sending http replay to client through ng_tee
 	 * */
 	memcpy(tmp, http_replay, strlen(http_replay));
-	sprintf(ourhook, "l2r");
+	snprintf(ourhook, sizeof(ourhook), "l2r");
 	if (NgSendData(srv_dsock, ourhook, tmp, strlen((const char *) tmp)) < 0) {
-		Log(LOG_ERR, "%s(%d): Error sending a message to %s: %s", __func__,
-				srv_num, ourhook, strerror(errno));
+		Log(LOG_ERR, "%s:%d %s(%d): Error sending a message to %s: %s", 
+                        __FILE__, __LINE__, __func__, 
+                        srv_num, ourhook, strerror(errno));
 		shut_fanout();
 		return 0;
 	}
@@ -476,25 +484,26 @@ int handle_client(struct connect connect) {
 	/* connect l2r fanout: right 0x1d
 	 *
 	 */
-	sprintf(con.path, "%s:", base_name);
-	sprintf(con.ourhook, "right");
-	sprintf(con.peerhook, "0x%s", pth);
+	snprintf(con.path, sizeof(con.path), "%s:", base_name);
+	snprintf(con.ourhook, sizeof(con.ourhook), "right");
+	snprintf(con.peerhook, sizeof(con.peerhook), "0x%s", pth);
 	// Our hook still = "l2r"
-	sprintf(path, "%s", ourhook);
+	snprintf(path, sizeof(path), "%s", ourhook);
 
 	if (NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_CONNECT, &con,
 			sizeof(con)) < 0 && errno != EISCONN) {
-		Log(LOG_ERR, "%s(%d): connect %s %s %s %s : %s", __func__, srv_num,
+		Log(LOG_ERR, "%s:%d %s(%d): connect %s %s %s %s : %s", 
+                        __FILE__, __LINE__, __func__, srv_num,
 				path, con.path, con.ourhook, con.peerhook, strerror(errno));
 		return 0;
 	}
 	/* shutdown l2r */
     memset(path, 0, sizeof(path));
-	sprintf(path, "l2r");
+	snprintf(path, sizeof(path), "l2r");
 	if (NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_SHUTDOWN, NULL, 0)
 			< 0) {
-		Log(LOG_ERR, "%s(%d): Failed to shutdown %s: %s", __func__, srv_num,
-				path, strerror(errno));
+		Log(LOG_ERR, "%s:%d %s(%d): Failed to shutdown %s: %s", __FILE__, __LINE__, 
+                        __func__, srv_num, path, strerror(errno));
 		return (EXIT_FAILURE);
 	}
 	pthread_mutex_lock(&mutex);
