@@ -377,7 +377,7 @@ int client_dead(int node, int cmonsock) {
 int get_tcp_state (char path[NG_PATHSIZ]) {
     struct ng_ksocket_sockopt *sockopt_resp = malloc(sizeof(struct ng_ksocket_sockopt) + sizeof(int));
     struct ng_mesg *resp;
-    int tcpi_state;
+    u_int8_t tcpi_state;
     memset(sockopt_resp, 0, sizeof(struct ng_ksocket_sockopt) + sizeof(int));
 
     sockopt_resp->level = IPPROTO_TCP;
@@ -482,8 +482,8 @@ int shut_clients(int srv_num, int cmonsock) {
 	token = NgSendMsg(cmonsock, hub, NGM_GENERIC_COOKIE, NGM_LISTHOOKS, NULL,
 			0);
 	if ((int) token < 0) {
-		Log(LOG_ERR, "%s(%d): Filed to get hooklist from node %s: %s",
-				__func__, srv_num, server_cfg[srv_num].name,
+		Log(LOG_ERR, "%s:%d %s(%d): Filed to get hooklist from node %s: %s",
+				__FILE__, __LINE__, __func__, srv_num, server_cfg[srv_num].name,
 				strerror(errno));
 		return EXIT_FAILURE;
 	}
@@ -493,8 +493,8 @@ int shut_clients(int srv_num, int cmonsock) {
 			free(resp);
 		}
 		if (NgAllocRecvMsg(cmonsock, &resp, NULL) < 0) {
-			Log(LOG_ERR, "%s(%d): Failed to receive hooklist from hub: %s",
-					__func__, srv_num, strerror(errno));
+			Log(LOG_ERR, "%s:%d %s(%d): Failed to receive hooklist from hub: %s",
+					__FILE__, __LINE__, __func__, srv_num, strerror(errno));
 			return EXIT_FAILURE;
 		}
 	} while (resp->header.token != token);
@@ -508,21 +508,21 @@ int shut_clients(int srv_num, int cmonsock) {
 			if (!*peer->name) {
 				//snprintf(peer->name, sizeof(peer->name), "%s", UNNAMED);
 				snprintf(peername, strlen(UNNAMED), "%s", UNNAMED);
-				Log(LOG_DEBUG, "%s(%d): peername = %s", __func__, srv_num,
-						peername);
+				Log(LOG_DEBUG, "%s:%d %s(%d): peername = %s", 
+                        __FILE__, __LINE__, __func__, srv_num, peername);
 			} else {
 				snprintf(peername, strlen(peer->name), "%s", peer->name);
-				Log(LOG_DEBUG, "%s(%d): peername = %s", __func__, srv_num,
-						peername);
+				Log(LOG_DEBUG, "%s:%d %s(%d): peername = %s", 
+                        __FILE__, __LINE__, __func__, srv_num, peername);
 			}
-			Log(LOG_NOTICE, "%s(%d): number of connected hooks = %d",
-					__func__, srv_num, ninfo->hooks);
+			Log(LOG_NOTICE, "%s:%d %s(%d): number of connected hooks = %d",
+					__FILE__, __LINE__, __func__, srv_num, ninfo->hooks);
 			snprintf(idbuf, sizeof(idbuf), "[%08x]:", peer->id);
 			if ((strcmp(peer->type, "ksocket") == 0)
 					&& (strcmp(peername, UNNAMED) == 0)) {
 				Log(LOG_NOTICE,
-						"%s(%d): peer->name = %s peer->type = %s, peer->id = [%08x]:",
-						__func__, srv_num, peername, peer->type, peer->id);
+						"%s:%d %s(%d): peer->name = %s peer->type = %s, peer->id = [%08x]:",
+						__FILE__, __LINE__, __func__, srv_num, peername, peer->type, peer->id);
 				shut_node(idbuf);
 			}
 		}

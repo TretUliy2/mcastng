@@ -49,8 +49,9 @@ int no_delay(char path[NG_PATHSIZ]);
 int get_client_address(int node_id);
 
 int new_handle_client( struct connect connect );
-int mkpeer_tee(struct connect connect );
+int mkpeer_tee(struct connect connect);
 int connect_tee(struct connect connect);
+int mkpeer_split(struct connect connect);
 /* Global variables */
 
 static int srv_csock, srv_dsock;
@@ -127,7 +128,7 @@ void * mkserver_http(void) {
 			continue;
 		}
 		// Handling clients
-		sprintf(connect.pth, pth, sizeof(pth));
+		snprintf(connect.pth, sizeof(connect.pth), "%s", pth);
 		set_tos(pth);
 		connect.srv_num = i;
 
@@ -423,8 +424,6 @@ int handle_client(struct connect connect) {
 	// Creating
 	// Connection accepted nodeid in pth
 	// connect fanout: [1d]: client-x client-x
-	struct ngm_connect con;
-	char path[NG_PATHSIZ];
     char ourhook[NG_HOOKSIZ];
 	int srv_num = connect.srv_num;
 
@@ -436,6 +435,7 @@ int handle_client(struct connect connect) {
 	 * write l2r -f http.reply
 	 * Sending http replay to client through ng_tee
 	 * */
+    mkpeer_split(connect);
 	snprintf(ourhook, sizeof(ourhook), "l2r");
 	if ( NgSendData(srv_dsock, ourhook, http_replay, strlen(http_replay)) < 0) {
 		Log(LOG_ERR, "%s:%d %s(%d): Error sending a message to %s: %s", 
@@ -448,29 +448,6 @@ int handle_client(struct connect connect) {
 	/* connect l2r fanout: right 0x1d
 	 *
 	 */
-    Log(LOG_INFO, "%s:%d connect.pth = %s", __FILE__, __LINE__, connect.pth);
-	snprintf(con.path, sizeof(con.path), "%s:", server_cfg[connect.srv_num].name);
-	snprintf(con.ourhook, sizeof(con.ourhook), "right");
-	snprintf(con.peerhook, sizeof(con.peerhook), "0x%s", connect.pth);
-	// Our hook still = "l2r"
-	snprintf(path, sizeof(path), "%s", "l2r");
-
-	if (NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_CONNECT, &con,
-			sizeof(con)) < 0 && errno != EISCONN) {
-		Log(LOG_ERR, "%s:%d %s(%d): connect %s %s %s %s : %s", 
-                        __FILE__, __LINE__, __func__, srv_num,
-				path, con.path, con.ourhook, con.peerhook, strerror(errno));
-		return 0;
-	}
-	/* shutdown l2r */
-    memset(path, 0, sizeof(path));
-	snprintf(path, sizeof(path), "l2r");
-	if (NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_SHUTDOWN, NULL, 0)
-			< 0) {
-		Log(LOG_ERR, "%s:%d %s(%d): Failed to shutdown %s: %s", 
-                __FILE__, __LINE__, __func__, srv_num, path, strerror(errno));
-		return (EXIT_FAILURE);
-	}
 	pthread_mutex_lock(&mutex);
 	server_cfg[connect.srv_num].c_count++;
 	pthread_mutex_unlock(&mutex);
@@ -502,15 +479,19 @@ int mkpeer_tee(struct connect connect ) {
 				strerror(errno));
 		return 0;
 	}
+
     return 1;
 }
 
 int connect_tee(struct connect connect) {
 	/* connect l2r [1d]: left ksockhook */
 	char path[NG_PATHSIZ];
+    char data_hook[NG_HOOKSIZ];
+    u_char *buf;
     struct ngm_connect con;
 
 	memset(path, 0, sizeof(path));
+    memset(data_hook, 0, sizeof(data_hook));
     snprintf(path, sizeof(path), "%s", "l2r");
 	snprintf(con.path, sizeof(con.path), "%s", connect.pth);
 	snprintf(con.ourhook, sizeof(con.ourhook), "left");
@@ -523,6 +504,72 @@ int connect_tee(struct connect connect) {
 				path, con.path, con.ourhook, con.peerhook, strerror(errno));
 		return 0;
 	}
-
+    // Read data from ksocket 
+    if ( NgAllocRecvData (srv_dsock, &buf, data_hook) < 0) {
+        Log(LOG_INFO, "%s:%d Error receiving data from client`s ksocket node: %s", 
+                        __FILE__, __LINE__, strerror(errno));
+        return 1;
+    }
+    Log(LOG_INFO, "%s:%d Received string from client %s", __FILE__, __LINE__, buf);
+    free(buf);
     return 1;
 }
+
+int mkpeer_split(struct connect connect ) {
+    char path[NG_PATHSIZ];
+    char name[NG_NODESIZ];
+    struct ngm_mkpeer mkp;
+    struct ngm_connect con;
+   
+    memset(path, 0, sizeof(mkp));
+    memset(name, 0, sizeof(mkp));
+    
+    /* Make ng_split node from rigth hook of ng_tee to out hook of ng_split
+     * mkpeer l2r 
+     * connect l2r split right out
+    */
+	snprintf(path, sizeof(path), "l2r");
+	snprintf(mkp.type, sizeof(mkp.type), "%s", "split");
+	snprintf(mkp.ourhook, sizeof(mkp.ourhook), "%s", "right");
+	snprintf(mkp.peerhook, sizeof(mkp.peerhook), "%s", "out");
+    
+    if ( NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_MKPEER, &mkp, sizeof(mkp)) < 0 ) {
+        Log(LOG_ERR, "%s:%d can`t make peer %s : %s", 
+                __FILE__, __LINE__, mkp.type, strerror(errno));
+        return -1;
+    }
+    memset(path, 0, sizeof(path));
+    snprintf(path, sizeof(path), "l2r:right");
+    snprintf(name, sizeof(name), "fltr-%s", connect.pth);
+    if ( NgNameNode(srv_csock, path, name) < 0) {
+        Log(LOG_ERR, "%s:%d Failed naming node at path %s : %s ", 
+                __FILE__, __LINE__, path, strerror(errno));
+        return -1;
+    }
+    /* 
+     * connect l2r:right mixed 0x1d 
+     * */
+    memset(path, 0, sizeof(path));
+    snprintf(path, sizeof(path), "%s:", name);
+	snprintf(con.path, sizeof(con.path), "%s:", server_cfg[connect.srv_num].name);
+	snprintf(con.ourhook, sizeof(con.ourhook), "mixed");
+	snprintf(con.peerhook, sizeof(con.peerhook), "0x%s", connect.pth);
+    if ( NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_CONNECT, &con, sizeof(con)) < 0 ) {
+        Log(LOG_ERR, "%s:%d Error connecting nodes %s and %s whith hooks %s and %s", 
+                __FILE__, __LINE__, path, con.path, con.ourhook, con.peerhook);
+        return -1;
+    }
+
+    /**/
+	/* shutdown l2r */
+    memset(path, 0, sizeof(path));
+	snprintf(path, sizeof(path), "l2r");
+	if (NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_SHUTDOWN, NULL, 0) < 0) {
+		Log(LOG_ERR, "%s:%d %s(%d): Failed to shutdown %s: %s", 
+                __FILE__, __LINE__, __func__, connect.srv_num, path, strerror(errno));
+		return (EXIT_FAILURE);
+	}
+    return 1;
+}
+
+
