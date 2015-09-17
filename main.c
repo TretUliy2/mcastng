@@ -327,7 +327,7 @@ int client_dead(int node, int cmonsock) {
 	uint32_t token;
 	char idbuf[NG_PATHSIZ];
 	struct ng_mesg *resp;
-	struct sockaddr_in *peername;
+    //struct sockaddr_in *peername;
 
     /* Checking if peername is can be fetched from socket */
 	memset (idbuf, 0, sizeof(idbuf));
@@ -357,7 +357,7 @@ int client_dead(int node, int cmonsock) {
 		return 0;
 	}
 
-	peername = (struct sockaddr_in *)resp->data;
+	//peername = (struct sockaddr_in *)resp->data;
 	/*
     Log(LOG_NOTICE, "%s(): Peer %s:%d still connected",
 			__func__, inet_ntoa(peername->sin_addr), ntohs(peername->sin_port));
@@ -394,7 +394,9 @@ int get_tcp_state (char path[NG_PATHSIZ]) {
         return -1;
     }
     struct tcp_info *info;
-    info = (struct tcp_info *)((struct ng_ksocket_sockopt *)resp->data)->value;
+    struct ng_ksocket_sockopt *skopt;
+    skopt = (struct ng_ksocket_sockopt *)resp->data;
+    info = (struct tcp_info *)skopt->value;
     tcpi_state = info->tcpi_state;
     free(sockopt_resp);
     free(resp);

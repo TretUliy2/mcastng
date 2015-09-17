@@ -263,8 +263,8 @@ int drop_mgroup(int srv_num) {
 	strcpy(src, inet_ntoa(server_cfg[srv_num].src.sin_addr));
 	strcpy(dst, inet_ntoa(server_cfg[srv_num].dst.sin_addr));
 
-	Log(LOG_DEBUG, "%s(%d): server_cfg[%d] src_ip = %s dst_ip = %s",
-			__func__, srv_num, srv_num, src, dst);
+	Log(LOG_DEBUG, "%s:%d %s(%d): server_cfg[%d] src_ip = %s dst_ip = %s",
+			__FILE__, __LINE__, __func__, srv_num, srv_num, src, dst);
 
 	sprintf(servsock, "%s-upstream:", server_cfg[srv_num].name);
 	memset(&sockopt_buf, 0, sizeof(sockopt_buf));
@@ -279,19 +279,19 @@ int drop_mgroup(int srv_num) {
 	if (NgSendMsg(csock, servsock, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
 			sockopt, sizeof(sockopt_buf)) < 0) {
 
-		Log(LOG_ERR, "%s(%d): Failed DROP MEMBERSHIP to %s: %s", __func__,
+		Log(LOG_ERR, "%s:%d %s(%d): Failed DROP MEMBERSHIP to %s: %s", __FILE__, __LINE__, __func__,
 				srv_num, servsock, strerror(errno));
 
 		Log(LOG_ERR,
-				"%s(%d): ip_mreq.imr_multiaddr.s_addr = %s ip_mreq.imr_interface.s_addr = %s",
-				__func__, srv_num, src,
+				"%s:%d %s(%d): ip_mreq.imr_multiaddr.s_addr = %s ip_mreq.imr_interface.s_addr = %s",
+				__FILE__, __LINE__, __func__, srv_num, src,
 				inet_ntoa(server_cfg[srv_num].mifip));
 
 		return EXIT_FAILURE;
 	}
 
-	Log(LOG_NOTICE, "%s(%d): DROP MEMBERSHIP FOR GROUP = %s success",
-			__func__, srv_num, src);
+	Log(LOG_NOTICE, "%s:%d %s(%d): DROP MEMBERSHIP FOR GROUP = %s success",
+			__FILE__, __LINE__, __func__, srv_num, src);
 
 	return EXIT_SUCCESS;
 }
