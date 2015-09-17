@@ -511,7 +511,7 @@ int shut_clients(int srv_num, int cmonsock) {
 				Log(LOG_DEBUG, "%s:%d %s(%d): peername = %s", 
                         __FILE__, __LINE__, __func__, srv_num, peername);
 			} else {
-				snprintf(peername, strlen(peer->name), "%s", peer->name);
+				snprintf(peername, sizeof(peername), "%s", peer->name);
 				Log(LOG_DEBUG, "%s:%d %s(%d): peername = %s", 
                         __FILE__, __LINE__, __func__, srv_num, peername);
 			}

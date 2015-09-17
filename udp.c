@@ -229,13 +229,13 @@ int add_mgroup(int srv_num) {
 		Log(LOG_ERR, "%s(%d): Failed ADD MEMBERSHIP %s to %s: %s", __func__,
 				srv_num, servsock, src, strerror(errno));
 		Log(LOG_ERR,
-				"%s(%d): ip_mreq.imr_multiaddr.s_addr = %s ip_mreq.imr_interface.s_addr=%s",
-				__func__, srv_num, src,
+				"%s:%d %s(%d): ip_mreq.imr_multiaddr.s_addr = %s ip_mreq.imr_interface.s_addr=%s",
+				__FILE__, __LINE__, __func__, srv_num, src,
 				inet_ntoa(server_cfg[srv_num].mifip));
 		return EXIT_FAILURE;
 	}
-	Log(LOG_NOTICE, "%s(%d): Register in mgroup = %s success", __func__,
-			srv_num, src);
+	Log(LOG_NOTICE, "%s:%d %s(%d): Register in mgroup = %s success", 
+            __FILE__, __LINE__, __func__, srv_num, src);
 	return EXIT_SUCCESS;
 }
 

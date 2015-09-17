@@ -532,18 +532,20 @@ int mkpeer_split(struct connect connect ) {
 	snprintf(mkp.type, sizeof(mkp.type), "%s", "split");
 	snprintf(mkp.ourhook, sizeof(mkp.ourhook), "%s", "right");
 	snprintf(mkp.peerhook, sizeof(mkp.peerhook), "%s", "out");
-    
+    NgSetDebug(3); 
     if ( NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_MKPEER, &mkp, sizeof(mkp)) < 0 ) {
         Log(LOG_ERR, "%s:%d can`t make peer %s : %s", 
                 __FILE__, __LINE__, mkp.type, strerror(errno));
         return -1;
     }
+    NgSetDebug(0); 
     memset(path, 0, sizeof(path));
-    snprintf(path, sizeof(path), "l2r:right");
-    snprintf(name, sizeof(name), "fltr-%s", connect.pth);
-    if ( NgNameNode(srv_csock, path, name) < 0) {
-        Log(LOG_ERR, "%s:%d Failed naming node at path %s : %s ", 
-                __FILE__, __LINE__, path, strerror(errno));
+    snprintf(path, sizeof(path), "l2r.right");
+    //snprintf(name, sizeof(name), "fltr-%s", connect.pth);
+    snprintf(name, sizeof(name), "filtr-%d", parse_pth(connect.pth));
+    if ( NgNameNode(srv_csock, path, "%s", name) < 0) {
+        Log(LOG_ERR, "%s:%d Failed naming(%s) node at path %s : %s ", 
+                __FILE__, __LINE__, name, path, strerror(errno));
         return -1;
     }
     /* 
@@ -555,8 +557,8 @@ int mkpeer_split(struct connect connect ) {
 	snprintf(con.ourhook, sizeof(con.ourhook), "mixed");
 	snprintf(con.peerhook, sizeof(con.peerhook), "0x%s", connect.pth);
     if ( NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_CONNECT, &con, sizeof(con)) < 0 ) {
-        Log(LOG_ERR, "%s:%d Error connecting nodes %s and %s whith hooks %s and %s", 
-                __FILE__, __LINE__, path, con.path, con.ourhook, con.peerhook);
+        Log(LOG_ERR, "%s:%d Error connecting nodes %s and %s whith hooks %s and %s : %s", 
+                __FILE__, __LINE__, path, con.path, con.ourhook, con.peerhook, strerror(errno));
         return -1;
     }
 
