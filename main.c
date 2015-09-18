@@ -60,6 +60,8 @@ int client_dead(int node, int cmonsock);
 int shut_node(char path[NG_PATHSIZ]);
 void print_config(void);
 int get_tcp_state (char path[NG_PATHSIZ]);
+void NgFuncErrx(const char *fmt, ...);
+void NgFuncErr(const char *fmt, ...);
 
 // External Functions
 extern int mkhub_udp(int srv_num);
@@ -82,6 +84,7 @@ client clients_secondary[MAX_CLIENTS];
 client *primary;
 client *secondary;
 
+FILE *log_fd;
 // Main Program
 int main(int argc, char **argv) {
 	extern int csock, dsock;
@@ -155,17 +158,17 @@ int main(int argc, char **argv) {
 
 	if (dflag == 1) {
 		daemonize();
-	}
 
+	}
+    NgSetErrLog(NgFuncErr, NgFuncErrx);
 	memset(buf, 0, sizeof(buf));
 	memset(name, 0, sizeof(name));
 
 	sprintf(name, "mcastng%d", getpid());
-	if (debug == 1)
-		NgSetDebug(4);
-
-	if (debug == 1)
+	if (debug == 1) {
+		NgSetDebug(3);
 		Log(LOG_DEBUG, "main(): NgSetErrLog done");
+    }
 
 	// Handling Ctrl + C and other signals
 	signal(SIGTSTP, signal_handler);
@@ -537,7 +540,7 @@ void shut_fanout(void) {
 	int i;
 	memset(path, 0, sizeof(path));
 	for (i = 0; i < srv_count; i++) {
-		shut_clients(i, csock);
+		//shut_clients(i, csock);
 		sprintf(path, "%s:", server_cfg[i].name);
 		if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE, NGM_SHUTDOWN, NULL, 0)
 				< 0) {
@@ -609,6 +612,9 @@ void daemonize(void) {
 		exit(EXIT_SUCCESS);
 	}
 	umask(0);
+    if ( (log_fd = fopen(LOGFILE, "a")) == NULL ) {
+	    fprintf(stderr, "%s:%d %s(): Can`t open log file for writing : %s", __FILE__, __LINE__, __func__, strerror(errno));
+    }
 	// Create SID for the child process
 	sid = setsid();
 	if (sid < 0) {
@@ -617,7 +623,7 @@ void daemonize(void) {
 		exit(EXIT_FAILURE);
 	}
 	if ((fp = fopen(pidfile, "w")) == NULL) {
-		Log(LOG_ERR, "%s(): Can`t write pid file: %s", __func__,
+	Log(LOG_ERR, "%s(): Can`t write pid file: %s", __func__,
 				strerror(errno));
 	} else {
 		fprintf(fp, "%d", getpid());
@@ -661,3 +667,36 @@ void print_config(void) {
 				dst_ip, ntohs(server_cfg[i].dst.sin_port));
 	}
 }
+/*
+ * NgFuncErrx()
+ */
+
+void
+NgFuncErrx(const char *fmt, ...)
+{
+    char    buf[100];
+    va_list args;
+
+    va_start(args, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+    Log(LOG_ERR, "netgraph: %s", buf);
+}
+
+/*
+ * NgFuncErr()
+ */
+
+void
+NgFuncErr(const char *fmt, ...)
+{
+    char    buf[100];
+    va_list args;
+
+    va_start(args, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+    Log(LOG_ERR, "netgraph: %s", buf);
+}
+
+

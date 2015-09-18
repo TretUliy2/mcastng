@@ -83,7 +83,6 @@ void * mkserver_http(void) {
 	int i;
 
 
-    NgSetDebug(3); 
 	m = NULL;
 
 	memset(pth, 0, sizeof(pth));
@@ -532,7 +531,7 @@ int mkpeer_split(struct connect connect ) {
     memset(path, 0, sizeof(path));
     snprintf(path, sizeof(path), "l2r.right");
     //snprintf(name, sizeof(name), "fltr-%s", connect.pth);
-    snprintf(name, sizeof(name), "filtr-%d", parse_pth(connect.pth));
+    snprintf(name, sizeof(name), "filtr-%X", parse_pth(connect.pth));
     if ( NgNameNode(srv_csock, path, "%s", name) < 0) {
         Log(LOG_ERR, "%s:%d Failed naming(%s) node at path %s : %s ", 
                 __FILE__, __LINE__, name, path, strerror(errno));
@@ -561,7 +560,6 @@ int mkpeer_split(struct connect connect ) {
 		shut_fanout();
 		return 0;
 	}
-
     /**/
 	/* shutdown l2r */
     memset(path, 0, sizeof(path));

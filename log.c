@@ -8,8 +8,8 @@
 #include <stdio.h>
 #include <syslog.h>
 #include <stdarg.h>
-
 extern int daemonized;
+extern FILE *log_fd;
 
 void Log(int log, const char *fmt, ...);
 
@@ -26,7 +26,8 @@ void Log(int log, const char *fmt, ...) {
 		log = LOG_NOTICE;
 	}
 	if (daemonized == 1) {
-		syslog(log, "%s", buf);
+		fprintf(log_fd, "%s\n", buf);
+        fflush(log_fd);
 	} else {
 		fprintf(stderr, "%s\n", buf);
 	}
