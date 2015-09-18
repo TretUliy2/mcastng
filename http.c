@@ -83,6 +83,7 @@ void * mkserver_http(void) {
 	int i;
 
 
+    NgSetDebug(3); 
 	m = NULL;
 
 	memset(pth, 0, sizeof(pth));
@@ -424,8 +425,6 @@ int handle_client(struct connect connect) {
 	// Creating
 	// Connection accepted nodeid in pth
 	// connect fanout: [1d]: client-x client-x
-    char ourhook[NG_HOOKSIZ];
-	int srv_num = connect.srv_num;
 
 	/* mkpeer . tee l2r left2right  */
     mkpeer_tee(connect);
@@ -436,14 +435,7 @@ int handle_client(struct connect connect) {
 	 * Sending http replay to client through ng_tee
 	 * */
     mkpeer_split(connect);
-	snprintf(ourhook, sizeof(ourhook), "l2r");
-	if ( NgSendData(srv_dsock, ourhook, http_replay, strlen(http_replay)) < 0) {
-		Log(LOG_ERR, "%s:%d %s(%d): Error sending a message to %s: %s", 
-                        __FILE__, __LINE__, __func__, 
-                        srv_num, ourhook, strerror(errno));
-		shut_fanout();
-		return 0;
-	}
+
 
 	/* connect l2r fanout: right 0x1d
 	 *
@@ -532,13 +524,11 @@ int mkpeer_split(struct connect connect ) {
 	snprintf(mkp.type, sizeof(mkp.type), "%s", "split");
 	snprintf(mkp.ourhook, sizeof(mkp.ourhook), "%s", "right");
 	snprintf(mkp.peerhook, sizeof(mkp.peerhook), "%s", "out");
-    NgSetDebug(3); 
     if ( NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_MKPEER, &mkp, sizeof(mkp)) < 0 ) {
         Log(LOG_ERR, "%s:%d can`t make peer %s : %s", 
                 __FILE__, __LINE__, mkp.type, strerror(errno));
         return -1;
     }
-    NgSetDebug(0); 
     memset(path, 0, sizeof(path));
     snprintf(path, sizeof(path), "l2r.right");
     //snprintf(name, sizeof(name), "fltr-%s", connect.pth);
@@ -553,14 +543,24 @@ int mkpeer_split(struct connect connect ) {
      * */
     memset(path, 0, sizeof(path));
     snprintf(path, sizeof(path), "%s:", name);
+    Log(LOG_INFO, "%s:%d %s() Connecting ng_split(%s) to ng_hub(%s) whith hooks ng_split = mixed ng_hub = 0x%x",
+            __FILE__, __LINE__, __func__, name, server_cfg[connect.srv_num].name, parse_pth(connect.pth));
 	snprintf(con.path, sizeof(con.path), "%s:", server_cfg[connect.srv_num].name);
 	snprintf(con.ourhook, sizeof(con.ourhook), "mixed");
-	snprintf(con.peerhook, sizeof(con.peerhook), "0x%s", connect.pth);
+	snprintf(con.peerhook, sizeof(con.peerhook), "0x%x", parse_pth(connect.pth));
     if ( NgSendMsg(srv_csock, path, NGM_GENERIC_COOKIE, NGM_CONNECT, &con, sizeof(con)) < 0 ) {
         Log(LOG_ERR, "%s:%d Error connecting nodes %s and %s whith hooks %s and %s : %s", 
                 __FILE__, __LINE__, path, con.path, con.ourhook, con.peerhook, strerror(errno));
         return -1;
     }
+    // Send Reply to client
+	if ( NgSendData(srv_dsock, "l2r", http_replay, strlen(http_replay)) < 0) {
+		Log(LOG_ERR, "%s:%d %s(%d): Error sending a message to %s: %s", 
+                        __FILE__, __LINE__, __func__, 
+                        connect.srv_num, "l2r", strerror(errno));
+		shut_fanout();
+		return 0;
+	}
 
     /**/
 	/* shutdown l2r */
