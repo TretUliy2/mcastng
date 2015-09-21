@@ -167,36 +167,24 @@ int main(int argc, char **argv) {
 	sprintf(name, "mcastng%d", getpid());
 	if (debug == 1) {
 		NgSetDebug(3);
-		Log(LOG_DEBUG, "main(): NgSetErrLog done");
+		Log(LOG_DEBUG, "%s(): NgSetErrLog done", __func__);
     }
 
 	// Handling Ctrl + C and other signals
-	signal(SIGTSTP, signal_handler);
-	signal(SIGTTIN, signal_handler);
-	signal(SIGTTOU, signal_handler);
-	signal(SIGSYS, signal_handler);
-	signal(SIGTRAP, signal_handler);
-	signal(SIGXCPU, signal_handler);
-	signal(SIGXFSZ, signal_handler);
-	signal(SIGSTOP, signal_handler);
 	signal(SIGINT, signal_handler);
 	signal(SIGSEGV, signal_handler);
 	signal(SIGTERM, signal_handler);
-	signal(SIGABRT, signal_handler);
-	signal(SIGALRM, signal_handler);
-	signal(SIGFPE, signal_handler);
 	signal(SIGHUP, signal_handler);
-	signal(SIGILL, signal_handler);
 	signal(SIGKILL, signal_handler);
 	signal(SIGPIPE, signal_handler);
 	signal(SIGQUIT, signal_handler);
 	signal(SIGUSR1, signal_handler);
 	if (debug == 1)
-		Log(LOG_DEBUG, "%s: signals done", __func__);
+		Log(LOG_DEBUG, "%s:%d %s() signals done", __FILE__, __LINE__, __func__);
 
 	if (NgMkSockNode(name, &csock, &dsock) < 0) {
-		Log(LOG_ERR, "%s: Creation of Ngsocket Failed: %s", __func__,
-				strerror(errno));
+		Log(LOG_ERR, "%s:%d %s() Creation of Ngsocket Failed: %s", 
+               __FILE__, __LINE__, __func__, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 
@@ -205,19 +193,19 @@ int main(int argc, char **argv) {
 		sprintf(path, "%s:", server_cfg[i].name);
 		if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE, NGM_SHUTDOWN, NULL, 0)
 				< 0 && errno != ENOENT) {
-			Log(LOG_ERR, "%s: Error shutdowning %s: %s", path, __func__,
-					strerror(errno));
+			Log(LOG_ERR, "%s: Error shutdowning %s: %s", path, 
+                    __FILE__, __LINE__, __func__, strerror(errno));
 		}
 	}
 
 	for (i = 0; i < srv_count; i++) {
 		if (mkhub_udp(i) == 0) {
-			Log(LOG_ERR, "%s: mkhub function died : %s", __func__,
-					strerror(errno));
+			Log(LOG_ERR, "%s:%d %s: mkhub function died : %s", 
+                   __FILE__, __LINE__, __func__, strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 	}
-	Log(LOG_NOTICE, "%s() All hubs created", __func__);
+	Log(LOG_NOTICE, "%s:%d %s() All hubs created", __FILE__, __LINE__, __func__);
 	close(csock);
 	close(dsock);
 
@@ -226,8 +214,8 @@ int main(int argc, char **argv) {
 	// Starting Http servers
 	err = pthread_create(&threads[thr], NULL, (void *) mkserver_http, NULL);
 	if (err != 0)
-		Log(LOG_ERR, "%s: Failed to create thread %d: %s", __func__, i,
-				strerror(err));
+		Log(LOG_ERR, "%s:%d %s() Failed to create thread %d: %s", 
+                __FILE__, __LINE__, __func__, i, strerror(err));
 
 	errno = 0;
 	sprintf(pth, "mcastng-mon-%d", getpid());
@@ -236,8 +224,8 @@ int main(int argc, char **argv) {
 	 */
 	// Create separate netgraph socket to do the job
 	if (NgMkSockNode(pth, &cmonsock, &dmonsock) < 0) {
-		Log(LOG_ERR, "%s: Can`t create Netgraph monsock : %s", __func__,
-				strerror(errno));
+		Log(LOG_ERR, "%s:%d %s: Can`t create Netgraph monsock : %s", 
+                __FILE__, __LINE__, __func__, strerror(errno));
 		return 0;
 	}
 
@@ -254,11 +242,11 @@ void exit_nice(void) {
 	for (i = 0; i < thr; i++) {
 		err = pthread_cancel(threads[i]);
 		if (err != 0) {
-			Log(LOG_ERR, "exit_nice(): Error occured while pthread_cancel: %s",
-					strerror(err));
+			Log(LOG_ERR, "%s:%d %s(): Error occured while pthread_cancel: %s",
+					__FILE__, __LINE__, __func__, strerror(err));
 		} else {
-			Log(LOG_NOTICE, "exit_nice(): Thread thread[%d] closed successful",
-					i);
+			Log(LOG_NOTICE, "%s(): Thread thread[%d] closed successful",
+					__FILE__, __LINE__, __func__, i);
 		}
 	}
 	exit(EXIT_FAILURE);
@@ -293,8 +281,9 @@ void signal_handler(int sig) {
 		uint32_t i, c_count;
 		c_count = client_count;
 		for ( i = 0; i < c_count; i++ ) {
-			Log(LOG_INFO, "clint[%d] srv_num = %d node = [%08x]: address = %s:%d",
-					i, primary[i].srv_num, primary[i].node_id,
+			Log(LOG_INFO, "%s:%d %s() clint[%d] srv_num = %d node = [%08x]: address = %s:%d",
+					__FILE__, __LINE__, __func__, 
+                    i, primary[i].srv_num, primary[i].node_id,
 					inet_ntoa(primary[i].addr.sin_addr),
 					ntohs(primary[i].addr.sin_port));
 			//Log(LOG_INFO, "client[%d] srv_num = %d", i, primary[i].srv_num);
@@ -306,12 +295,13 @@ void signal_handler(int sig) {
 			sprintf(src, "%s:%d", inet_ntoa(server_cfg[i].src.sin_addr), ntohs(server_cfg[i].src.sin_port));
 			sprintf(dst, "%s:%d", inet_ntoa(server_cfg[i].dst.sin_addr), ntohs(server_cfg[i].dst.sin_port));
 			if (server_cfg[i].streaming == 1)
-			Log(LOG_INFO, "server[%d] multicast(dst) = %s src = %s", i, dst, src);
+			Log(LOG_INFO, "%s:%d %s() server[%d] multicast(dst) = %s src = %s", 
+                    __FILE__, __LINE__, __func__, i, dst, src);
 		}
 		break;
 	default:
-		Log(LOG_INFO, "%s: %s signal catched closing all", __func__,
-				strsignal(sig));
+		Log(LOG_INFO, "%s:%d %s() %s signal catched closing all", 
+                __FILE__, __LINE__, __func__, strsignal(sig));
 		shut_fanout();
 		unlink(PIDFILE);
 		exit_nice();
@@ -340,23 +330,24 @@ int client_dead(int node, int cmonsock) {
 	if ((int) token == -1) {
 		if (errno == ENOTCONN) {
 			Log(LOG_INFO,
-					"%s : Socket not connected, node %s: will be shutdown",
-					__func__, idbuf);
+					"%s:%d %s : Socket not connected, node %s: will be shutdown",
+					__FILE__, __LINE__, __func__, idbuf);
 			shut_node(idbuf);
 			return 1;
 		} else if (errno == ENOENT) {
-			Log(LOG_NOTICE, "%s (): Node already closed %s", __func__,
-					idbuf);
+			Log(LOG_NOTICE, "%s:%d %s (): Node already closed %s", 
+                    __FILE__, __LINE__, __func__, idbuf);
 			return 1;
 		} else {
 			Log(LOG_ERR,
-					"%s (): An error has occured while getpeername from node: %s, %s",
-					__func__,  idbuf, strerror(errno));
+					"%s:%d %s (): An error has occured while getpeername from node: %s, %s",
+					__FILE__, __LINE__, __func__,  idbuf, strerror(errno));
 			return 0;
 		}
 	}
 	if (NgAllocRecvMsg(cmonsock, &resp, NULL) < 0) {
-        Log(LOG_ERR, "%s:%d Error while allocating message: %s", __FILE__, __LINE__, strerror(errno));
+        Log(LOG_ERR, "%s:%d %s() Error while allocating message: %s", 
+                __FILE__, __LINE__, __func__, strerror(errno));
 		return 0;
 	}
 
@@ -369,8 +360,8 @@ int client_dead(int node, int cmonsock) {
     /* Checking if tcpi_state in struct tcp_info */
     int tcp_state = get_tcp_state(idbuf);
     if ( tcp_state >= 5 && tcp_state <= 10 ) {
-        Log(LOG_INFO, "%s:%d detected socket with state = %s which is near to close, shuting node %s", 
-                        __FILE__, __LINE__, tcpstates[tcp_state], idbuf);
+        Log(LOG_INFO, "%s:%d %s() detected socket with state = %s which is near to close, shuting node %s", 
+                        __FILE__, __LINE__, __func__, tcpstates[tcp_state], idbuf);
 		shut_node(idbuf);
         return 1;
     }
@@ -388,12 +379,13 @@ int get_tcp_state (char path[NG_PATHSIZ]) {
     //NgSetDebug(3);
     if ( NgSendMsg(csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_GETOPT,
                             sockopt_resp, sizeof(*sockopt_resp)) == -1 ) {
-        Log(LOG_ERR, "Error while trying to get sockopt from %s - %s",
-                        path, strerror(errno));
+        Log(LOG_ERR, "%s:%d %s() Error while trying to get sockopt from %s - %s",
+                        __FILE__, __LINE__, __func__, path, strerror(errno));
         return -1;
     }
     if ( NgAllocRecvMsg(csock, &resp, 0 ) < 0 ) {
-        Log(LOG_ERR, "Error while trying to get message from getsockopt: %s", strerror(errno));
+        Log(LOG_ERR, "%s:%d %s() Error while trying to get message from getsockopt: %s", 
+                __FILE__, __LINE__, __func__, strerror(errno));
         return -1;
     }
     struct tcp_info *info;
@@ -565,9 +557,10 @@ int shut_node(char path[NG_PATHSIZ]) {
 	if (name[strlen(name) - 1] != ':') {
 		sprintf(name, "%s:", name);
 	}
+    Log(LOG_INFO, "%s%d %s() shuting down node at path %s", __FILE__, __LINE__, __func__, name);
 	if (NgSendMsg(csock, name, NGM_GENERIC_COOKIE, NGM_SHUTDOWN, NULL, 0) < 0) {
-		Log(LOG_INFO, "%s(): Error shutdowning fanout: %s\n", __func__,
-				strerror(errno));
+		Log(LOG_INFO, "%s:%d %s(): Error shutdowning fanout: %s\n", 
+                __FILE__, __LINE__, __func__, strerror(errno));
 		return (0);
 	}
 	return (1);
