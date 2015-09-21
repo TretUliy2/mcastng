@@ -58,6 +58,7 @@ int check_and_clear(int cmonsock);
 int shut_clients(int srv_num, int cmonsock);
 int client_dead(int node, int cmonsock);
 int shut_node(char path[NG_PATHSIZ]);
+int shut_client(char path[NG_PATHSIZ]);
 void print_config(void);
 int get_tcp_state (char path[NG_PATHSIZ]);
 void NgFuncErrx(const char *fmt, ...);
@@ -330,9 +331,9 @@ int client_dead(int node, int cmonsock) {
 	if ((int) token == -1) {
 		if (errno == ENOTCONN) {
 			Log(LOG_INFO,
-					"%s:%d %s : Socket not connected, node %s: will be shutdown",
+					"%s:%d %s : Socket not connected, node %s will be shutdown",
 					__FILE__, __LINE__, __func__, idbuf);
-			shut_node(idbuf);
+			shut_client(idbuf);
 			return 1;
 		} else if (errno == ENOENT) {
 			Log(LOG_NOTICE, "%s:%d %s (): Node already closed %s", 
@@ -362,7 +363,7 @@ int client_dead(int node, int cmonsock) {
     if ( tcp_state >= 5 && tcp_state <= 10 ) {
         Log(LOG_INFO, "%s:%d %s() detected socket with state = %s which is near to close, shuting node %s", 
                         __FILE__, __LINE__, __func__, tcpstates[tcp_state], idbuf);
-		shut_node(idbuf);
+		shut_client(idbuf);
         return 1;
     }
 	return 0;
@@ -526,6 +527,17 @@ int shut_clients(int srv_num, int cmonsock) {
 	free(resp);
 	return (EXIT_SUCCESS);
 }
+/*
+ * Shuting client and filter node
+ * */
+int shut_client(char path[NG_PATHSIZ]) {
+    char node[NG_PATHSIZ];
+    
+    memset(node, 0, sizeof(node));
+    snprintf(node, sizeof(node), "%sksockhook", path);
+    shut_node(node);
+    return 1;
+}
 // Shutdown hubs
 void shut_fanout(void) {
 	char path[BUF_LEN];
@@ -547,16 +559,10 @@ void shut_fanout(void) {
 // Shutdown Single node
 int shut_node(char path[NG_PATHSIZ]) {
 	char name[NG_PATHSIZ];
-	unsigned int i = 0;
 	memset(name, 0, sizeof(name));
-	while (i < strlen(path)) {
-		name[i] = path[i];
-		i++;
-	}
 
-	if (name[strlen(name) - 1] != ':') {
-		sprintf(name, "%s:", name);
-	}
+    memcpy(name, path, sizeof(name));
+
     Log(LOG_INFO, "%s%d %s() shuting down node at path %s", __FILE__, __LINE__, __func__, name);
 	if (NgSendMsg(csock, name, NGM_GENERIC_COOKIE, NGM_SHUTDOWN, NULL, 0) < 0) {
 		Log(LOG_INFO, "%s:%d %s(): Error shutdowning fanout: %s\n", 
