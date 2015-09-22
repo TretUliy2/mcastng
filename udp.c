@@ -34,6 +34,8 @@
 int mkhub_udp(int srv_num);
 int add_mgroup(int srv_num);
 int drop_mgroup(int srv_num);
+int set_ksocket_sndbuf(char path[NG_PATHSIZ], int bufsiz);
+int set_ksocket_rcvbuf(char path[NG_PATHSIZ], int bufsiz);
 
 // External Function
 void Log(int log, const char *fmt, ...);
@@ -63,7 +65,8 @@ int mkhub_udp(int srv_num) {
 		struct ng_ksocket_sockopt sockopt;
 	} sockopt_buf;
 
-	struct ng_ksocket_sockopt * const sockopt = &sockopt_buf.sockopt;
+	struct ng_ksocket_sockopt *const sockopt = &sockopt_buf.sockopt;
+
 	int one = 1, debug;
 	char peerhook[NG_PATHSIZ], ourhook[NG_PATHSIZ];
 
@@ -294,4 +297,52 @@ int drop_mgroup(int srv_num) {
 			__FILE__, __LINE__, __func__, srv_num, src);
 
 	return EXIT_SUCCESS;
+}
+/*
+ *
+ * */
+int set_ksocket_sndbuf(char path[NG_PATHSIZ], int bufsiz) {
+	union {
+		u_char buf[sizeof(struct ng_ksocket_sockopt) + sizeof(int)];
+		struct ng_ksocket_sockopt sockopt;
+	} sockopt_buf;
+
+	struct ng_ksocket_sockopt *const sockopt = &sockopt_buf.sockopt;
+    memset(&sockopt_buf, 0, sizeof(sockopt_buf));
+    sockopt->level = SOL_SOCKET;
+    sockopt->name = SO_SNDBUF;
+
+    memcpy(sockopt->value, &bufsiz, sizeof(bufsiz));
+
+    if (NgSendMsg( csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT, sockopt, sizeof(sockopt_buf)) < 0) {
+        Log(LOG_ERR, "%s:%d %s() Error sending message %s", 
+                __FILE__, __LINE__, __func__, strerror(errno));
+        return -1;
+    }   
+    return 1;
+}
+/*
+ *
+ *
+ * */
+int set_ksocket_rcvbuf(char path[NG_PATHSIZ], int bufsiz) {
+	union {
+		u_char buf[sizeof(struct ng_ksocket_sockopt) + sizeof(int)];
+		struct ng_ksocket_sockopt sockopt;
+	} sockopt_buf;
+
+	struct ng_ksocket_sockopt *const sockopt = &sockopt_buf.sockopt;
+
+    memset(&sockopt_buf, 0, sizeof(sockopt_buf));
+    sockopt->level = SOL_SOCKET;
+    sockopt->name = SO_SNDBUF;
+
+    memcpy(sockopt->value, &bufsiz, sizeof(bufsiz));
+
+    if (NgSendMsg( csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT, sockopt, sizeof(sockopt_buf)) < 0) {
+        Log(LOG_ERR, "%s:%d %s() Error sending message %s", 
+                __FILE__, __LINE__, __func__, strerror(errno));
+        return -1;
+    }   
+    return 1;
 }
