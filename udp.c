@@ -36,6 +36,7 @@ int add_mgroup(int srv_num);
 int drop_mgroup(int srv_num);
 int set_ksocket_sndbuf(char path[NG_PATHSIZ], int bufsiz);
 int set_ksocket_rcvbuf(char path[NG_PATHSIZ], int bufsiz);
+int get_ksocket_sndbuf(char path[NG_PATHSIZ]);
 
 // External Function
 void Log(int log, const char *fmt, ...);
@@ -56,8 +57,6 @@ int mkhub_udp(int srv_num) {
 	char path[NG_PATHSIZ], name[NG_PATHSIZ], tmp[BUF_LEN];
 	char src[IP_LEN], dst[IP_LEN];
 	struct ngm_mkpeer mkp;
-	struct ngm_connect con;
-	struct igmp igmp;
 	struct ip_mreq ip_mreq;
 
 	union {
@@ -79,10 +78,8 @@ int mkhub_udp(int srv_num) {
 	strcpy(dst, inet_ntoa(server_cfg[srv_num].dst.sin_addr));
 
 	memset(basename, 0, sizeof(basename));
-	memset(&igmp, 0, sizeof(igmp));
-	memset(&ip_mreq, 0, sizeof(ip_mreq));
 	memset(&mkp, 0, sizeof(mkp));
-	memset(&con, 0, sizeof(con));
+	memset(&ip_mreq, 0, sizeof(ip_mreq));
 	memset(tmp, 0, sizeof(tmp));
 	memset(name, 0, sizeof(name));
 	memset(path, 0, sizeof(path));
@@ -160,6 +157,10 @@ int mkhub_udp(int srv_num) {
 	sprintf(path, "%s-upstream:", basename);
 	// setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(int)) < 0)
 	memset(&sockopt_buf, 0, sizeof(sockopt_buf));
+    /* Setting bufsizes for udp socket
+     * */
+    set_ksocket_sndbuf(path, 256*1024);
+    set_ksocket_rcvbuf(path, 256*1024);
 
 	sockopt->level = SOL_SOCKET;
 	sockopt->name = SO_REUSEADDR;
@@ -298,6 +299,36 @@ int drop_mgroup(int srv_num) {
 
 	return EXIT_SUCCESS;
 }
+
+int get_ksocket_sndbuf ( char path[NG_PATHSIZ] ) {
+    struct ng_ksocket_sockopt *getopt = malloc( sizeof(struct ng_ksocket_sockopt) + sizeof(int) );
+
+    memset(getopt, 0, sizeof(struct ng_ksocket_sockopt) + sizeof(int));
+    
+    getopt->level = SOL_SOCKET;
+    getopt->name = SO_SNDBUF;
+
+    NgSetDebug(3);   
+    if (NgSendMsg( csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_GETOPT, getopt, sizeof(*getopt) ) < 0) {
+       Log(LOG_ERR, "%s:%d %s() Error getting sockopt %s", __FILE__, __LINE__, __func__, strerror(errno)); 
+    } else {
+        struct ng_mesg *resp;
+
+        Log(LOG_INFO, "%s:%d %s() current snd_buf_size = %d", __FILE__, __LINE__, __func__, getopt->value);
+        if ( NgAllocRecvMsg(csock, &resp, 0 ) < 0 ) {
+            Log(LOG_ERR, "%s:%d %s() Error while trying to get message from getsockopt: %s",
+                __FILE__, __LINE__, __func__, strerror(errno));
+            return -1;
+        }
+        struct ng_ksocket_sockopt *skopt;
+        skopt = (struct ng_ksocket_sockopt *)resp->data;
+        Log(LOG_INFO, "%s:%d %s() current snd_buf_size_in_resp = %d", __FILE__, __LINE__, __func__, (int)skopt->value);
+        free(getopt);
+        free(resp);
+    }
+    NgSetDebug(0);   
+    return 1;
+}
 /*
  *
  * */
@@ -306,8 +337,10 @@ int set_ksocket_sndbuf(char path[NG_PATHSIZ], int bufsiz) {
 		u_char buf[sizeof(struct ng_ksocket_sockopt) + sizeof(int)];
 		struct ng_ksocket_sockopt sockopt;
 	} sockopt_buf;
-
 	struct ng_ksocket_sockopt *const sockopt = &sockopt_buf.sockopt;
+
+    Log(LOG_INFO, "BEFORE"); 
+    get_ksocket_sndbuf(path);
     memset(&sockopt_buf, 0, sizeof(sockopt_buf));
     sockopt->level = SOL_SOCKET;
     sockopt->name = SO_SNDBUF;
@@ -319,6 +352,9 @@ int set_ksocket_sndbuf(char path[NG_PATHSIZ], int bufsiz) {
                 __FILE__, __LINE__, __func__, strerror(errno));
         return -1;
     }   
+
+    Log(LOG_INFO, "AFTER"); 
+    get_ksocket_sndbuf(path);
     return 1;
 }
 /*
@@ -332,10 +368,22 @@ int set_ksocket_rcvbuf(char path[NG_PATHSIZ], int bufsiz) {
 	} sockopt_buf;
 
 	struct ng_ksocket_sockopt *const sockopt = &sockopt_buf.sockopt;
+    struct ng_ksocket_sockopt *getopt = malloc( sizeof(struct ng_ksocket_sockopt) + sizeof(int) );
+    getopt->level = SOL_SOCKET;
+    getopt->name = SO_RCVBUF;
+    memset(getopt, 0, sizeof(struct ng_ksocket_sockopt) + sizeof(int));
+    Log(LOG_INFO, "%s:%d %s() sizeof(*getopt) = %d", __FILE__, __LINE__, __func__, sizeof(*getopt));
+    if (NgSendMsg( csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_GETOPT, getopt, sizeof(*getopt) ) < 0) {
+       Log(LOG_ERR, "%s:%d %s() Error getting sockopt %s", __FILE__, __LINE__, __func__, strerror(errno)); 
+    } else {
+        Log(LOG_INFO, "%s:%d %s() current snd_buf_size = %d", __FILE__, __LINE__, __func__, getopt->value);
+        free(getopt);
+    }
+
 
     memset(&sockopt_buf, 0, sizeof(sockopt_buf));
     sockopt->level = SOL_SOCKET;
-    sockopt->name = SO_SNDBUF;
+    sockopt->name = SO_RCVBUF;
 
     memcpy(sockopt->value, &bufsiz, sizeof(bufsiz));
 

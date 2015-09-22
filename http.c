@@ -31,6 +31,8 @@ extern void shut_fanout(void);
 extern void exit_nice(void);
 extern int add_mgroup(int srv_num);
 extern void Log(int log, const char *fmt, ...);
+extern int set_ksocket_sndbuf(char path[NG_PATHSIZ], int bufsiz);
+extern int set_ksocket_rcvbuf(char path[NG_PATHSIZ], int bufsiz);
 
 /*  Structures */
 struct connect {
@@ -87,11 +89,8 @@ void * mkserver_http(void) {
 
 	memset(pth, 0, sizeof(pth));
 	memset(&con, 0, sizeof(con));
-
 	memset((char *) &addr, 0, sizeof(addr));
-
 	memset(name, 0, sizeof(name));
-
 	memset(tokens, 0, sizeof(tokens));
 	// Naming Control socket node
 	sprintf(name, "srv-csock-%d", getpid());
@@ -302,6 +301,7 @@ int create_listening_socket(int i) {
 	// Setting tos value
 	set_tos(path);
 	no_delay(path);
+    set_ksocket_sndbuf(path, SND_BUF_SIZE);
 	//  msg servsock: listen 64
 	lst = LST;
 	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_LISTEN, &lst,

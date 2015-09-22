@@ -19,6 +19,7 @@
 #define		IP_LEN	16
 // 255.255.255.255
 #define		PORT_LEN	6
+#define     SND_BUF_SIZE (256*1024)
 
 int csock, dsock;
 
