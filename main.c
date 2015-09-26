@@ -537,9 +537,13 @@ int shut_client(char path[NG_PATHSIZ], int node) {
     char hook[NG_HOOKSIZ]; 
 
     snprintf(hook, sizeof(hook), "0x%x", node);
-    snprintf(pth, sizeof(pth), "%sksockhook", pth);
-    rm_hook(pth, hook);
+    snprintf(pth, sizeof(pth), "%sksockhook.mixed", path);
+    if ( rm_hook(pth, hook) < 0 ) {
+        Log(LOG_ERR, "%s:%d %s() Error rming hook", __FILE__, __LINE__,  __func__);
+        return -1;
+    } 
     memset(pth, 0, sizeof(pth));
+    snprintf(pth, sizeof(pth), "%sksockhook", path);
     shut_node(pth);
     return 1;
 }
@@ -673,11 +677,13 @@ void print_config(void) {
 }
 //
 int rm_hook ( char path[NG_PATHSIZ],  char hook[NG_HOOKSIZ]) {
-    
-    if ( NgSendMsg(csock, path, NGM_GENERIC_COOKIE, NGM_RMHOOK, hook, strlen(hook)) < 0 ) {
-        Log(LOG_ERR, "%s:%d %s() Error rm hook <%s> at path %s", __FILE__, __LINE__, __func__, hook, path);
+    NgSetDebug(3); 
+    if ( NgSendMsg(csock, path, NGM_GENERIC_COOKIE, NGM_RMHOOK, hook, NG_HOOKSIZ) < 0 ) {
+        Log(LOG_ERR, "%s:%d %s() Error rm hook <%s> at path %s : %s", 
+                __FILE__, __LINE__, __func__, hook, path, strerror(errno));
         return -1;
     }
+    NgSetDebug(0); 
     return 1;
 }
 
