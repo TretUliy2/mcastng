@@ -540,7 +540,6 @@ int shut_client(char path[NG_PATHSIZ], int node) {
     snprintf(pth, sizeof(pth), "%sksockhook.mixed", path);
     if ( rm_hook(pth, hook) < 0 ) {
         Log(LOG_ERR, "%s:%d %s() Error rming hook", __FILE__, __LINE__,  __func__);
-        return -1;
     } 
     memset(pth, 0, sizeof(pth));
     snprintf(pth, sizeof(pth), "%sksockhook", path);
@@ -574,8 +573,8 @@ int shut_node(char path[NG_PATHSIZ]) {
 
     Log(LOG_INFO, "%s%d %s() shuting down node at path %s", __FILE__, __LINE__, __func__, name);
 	if (NgSendMsg(csock, name, NGM_GENERIC_COOKIE, NGM_SHUTDOWN, NULL, 0) < 0) {
-		Log(LOG_INFO, "%s:%d %s(): Error shutdowning fanout: %s\n", 
-                __FILE__, __LINE__, __func__, strerror(errno));
+		Log(LOG_INFO, "%s:%d %s(): Error shutdowning node at path %s: %s\n", 
+                __FILE__, __LINE__, __func__, path, strerror(errno));
 		return (0);
 	}
 	return (1);
