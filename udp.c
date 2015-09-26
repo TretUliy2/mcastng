@@ -322,7 +322,7 @@ int get_ksocket_sndbuf ( char path[NG_PATHSIZ] ) {
         }
         struct ng_ksocket_sockopt *skopt;
         skopt = (struct ng_ksocket_sockopt *)resp->data;
-        Log(LOG_INFO, "%s:%d %s() current snd_buf_size_in_resp = %d", __FILE__, __LINE__, __func__, (int)skopt->value);
+        Log(LOG_INFO, "%s:%d %s() current snd_buf_size_in_resp = %d", __FILE__, __LINE__, __func__, *(skopt->value));
         free(getopt);
         free(resp);
     }
