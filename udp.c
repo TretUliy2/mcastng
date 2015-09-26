@@ -313,16 +313,20 @@ int get_ksocket_sndbuf ( char path[NG_PATHSIZ] ) {
        Log(LOG_ERR, "%s:%d %s() Error getting sockopt %s", __FILE__, __LINE__, __func__, strerror(errno)); 
     } else {
         struct ng_mesg *resp;
-
-        Log(LOG_INFO, "%s:%d %s() current snd_buf_size = %d", __FILE__, __LINE__, __func__, getopt->value);
+        size_t *value ;
+        
         if ( NgAllocRecvMsg(csock, &resp, 0 ) < 0 ) {
             Log(LOG_ERR, "%s:%d %s() Error while trying to get message from getsockopt: %s",
                 __FILE__, __LINE__, __func__, strerror(errno));
             return -1;
         }
+        value = (size_t *)getopt->value;
+        Log(LOG_INFO, "%s:%d %s() current snd_buf_size = %d", __FILE__, __LINE__, __func__, *value );
         struct ng_ksocket_sockopt *skopt;
         skopt = (struct ng_ksocket_sockopt *)resp->data;
-        Log(LOG_INFO, "%s:%d %s() current snd_buf_size_in_resp = %d", __FILE__, __LINE__, __func__, *(skopt->value));
+        Log(LOG_INFO, "received sockopt len = %d", resp->header.arglen - sizeof(struct ng_ksocket_sockopt));
+        value = (size_t *)skopt->value;
+        Log(LOG_INFO, "%s:%d %s() current snd_buf_size_in_resp = %lu", __FILE__, __LINE__, __func__, *value);
         free(getopt);
         free(resp);
     }

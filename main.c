@@ -58,11 +58,12 @@ int check_and_clear(int cmonsock);
 int shut_clients(int srv_num, int cmonsock);
 int client_dead(int node, int cmonsock);
 int shut_node(char path[NG_PATHSIZ]);
-int shut_client(char path[NG_PATHSIZ]);
+int shut_client(char path[NG_PATHSIZ], int node);
 void print_config(void);
 int get_tcp_state (char path[NG_PATHSIZ]);
 void NgFuncErrx(const char *fmt, ...);
 void NgFuncErr(const char *fmt, ...);
+int rm_hook ( char path[NG_PATHSIZ],  char hook[NG_HOOKSIZ]);
 
 // External Functions
 extern int mkhub_udp(int srv_num);
@@ -332,8 +333,9 @@ int client_dead(int node, int cmonsock) {
 		if (errno == ENOTCONN) {
 			Log(LOG_INFO,
 					"%s:%d %s : Socket not connected, node %s will be shutdown",
-					__FILE__, __LINE__, __func__, idbuf);
-			shut_client(idbuf);
+			        __FILE__, __LINE__, __func__, idbuf);
+            
+			shut_client(idbuf, node);
 			return 1;
 		} else if (errno == ENOENT) {
 			Log(LOG_NOTICE, "%s:%d %s (): Node already closed %s", 
@@ -363,7 +365,7 @@ int client_dead(int node, int cmonsock) {
     if ( tcp_state >= 5 && tcp_state <= 10 ) {
         Log(LOG_INFO, "%s:%d %s() detected socket with state = %s which is near to close, shuting node %s", 
                         __FILE__, __LINE__, __func__, tcpstates[tcp_state], idbuf);
-		shut_client(idbuf);
+		shut_client(idbuf, node);
         return 1;
     }
 	return 0;
@@ -530,12 +532,15 @@ int shut_clients(int srv_num, int cmonsock) {
 /*
  * Shuting client and filter node
  * */
-int shut_client(char path[NG_PATHSIZ]) {
-    char node[NG_PATHSIZ];
-    
-    memset(node, 0, sizeof(node));
-    snprintf(node, sizeof(node), "%sksockhook", path);
-    shut_node(node);
+int shut_client(char path[NG_PATHSIZ], int node) {
+    char pth[NG_PATHSIZ];
+    char hook[NG_HOOKSIZ]; 
+
+    snprintf(hook, sizeof(hook), "0x%x", node);
+    snprintf(pth, sizeof(pth), "%sksockhook", pth);
+    rm_hook(pth, hook);
+    memset(pth, 0, sizeof(pth));
+    shut_node(pth);
     return 1;
 }
 // Shutdown hubs
@@ -666,6 +671,17 @@ void print_config(void) {
 				dst_ip, ntohs(server_cfg[i].dst.sin_port));
 	}
 }
+//
+int rm_hook ( char path[NG_PATHSIZ],  char hook[NG_HOOKSIZ]) {
+    
+    if ( NgSendMsg(csock, path, NGM_GENERIC_COOKIE, NGM_RMHOOK, hook, strlen(hook)) < 0 ) {
+        Log(LOG_ERR, "%s:%d %s() Error rm hook <%s> at path %s", __FILE__, __LINE__, __func__, hook, path);
+        return -1;
+    }
+    return 1;
+}
+
+
 /*
  * NgFuncErrx()
  */
