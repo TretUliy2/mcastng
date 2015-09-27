@@ -319,7 +319,7 @@ int client_dead(int node, int cmonsock) {
 	 * dead - shut it down and return 1
 	 * other situation return 0
 	 * */
-	uint32_t token;
+	int token;
 	char idbuf[NG_PATHSIZ];
 	struct ng_mesg *resp;
     //struct sockaddr_in *peername;
@@ -329,7 +329,7 @@ int client_dead(int node, int cmonsock) {
 	snprintf(idbuf, sizeof(idbuf), "[%08x]:", node);
 	token = NgSendMsg(cmonsock, idbuf, NGM_KSOCKET_COOKIE,
 			NGM_KSOCKET_GETPEERNAME, NULL, 0);
-	if ((int) token == -1) {
+	if ( token == -1) {
 		if (errno == ENOTCONN) {
 			Log(LOG_INFO,
 					"%s:%d %s : Socket not connected, node %s will be shutdown",
@@ -345,43 +345,43 @@ int client_dead(int node, int cmonsock) {
 			Log(LOG_ERR,
 					"%s:%d %s (): An error has occured while getpeername from node: %s, %s",
 					__FILE__, __LINE__, __func__,  idbuf, strerror(errno));
-			return 0;
+			return 1;
 		}
 	}
 	if (NgAllocRecvMsg(cmonsock, &resp, NULL) < 0) {
         Log(LOG_ERR, "%s:%d %s() Error while allocating message: %s", 
                 __FILE__, __LINE__, __func__, strerror(errno));
-		return 0;
+		return 1;
 	}
 
-	//peername = (struct sockaddr_in *)resp->data;
-	/*
+	struct sockaddr_in *peername;
+	peername = (struct sockaddr_in *)resp->data;
+
     Log(LOG_NOTICE, "%s(): Peer %s:%d still connected",
 			__func__, inet_ntoa(peername->sin_addr), ntohs(peername->sin_port));
-	*/
+
     free(resp);
     /* Checking if tcpi_state in struct tcp_info */
-    int tcp_state = get_tcp_state(idbuf);
+    u_int8_t tcp_state = get_tcp_state(idbuf);
     if ( tcp_state >= 5 && tcp_state <= 10 ) {
         Log(LOG_INFO, "%s:%d %s() detected socket with state = %s which is near to close, shuting node %s", 
                         __FILE__, __LINE__, __func__, tcpstates[tcp_state], idbuf);
 		shut_client(idbuf, node);
         return 1;
     }
-	return 0;
+	return -1;
 }
 
 int get_tcp_state (char path[NG_PATHSIZ]) {
-    struct ng_ksocket_sockopt *sockopt_resp = malloc(sizeof(struct ng_ksocket_sockopt) + sizeof(int));
+    struct ng_ksocket_sockopt sockopt_resp;
     struct ng_mesg *resp;
     u_int8_t tcpi_state;
-    memset(sockopt_resp, 0, sizeof(struct ng_ksocket_sockopt) + sizeof(int));
 
-    sockopt_resp->level = IPPROTO_TCP;
-    sockopt_resp->name = TCP_INFO;
+    sockopt_resp.level = IPPROTO_TCP;
+    sockopt_resp.name = TCP_INFO;
     //NgSetDebug(3);
     if ( NgSendMsg(csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_GETOPT,
-                            sockopt_resp, sizeof(*sockopt_resp)) == -1 ) {
+                            &sockopt_resp, sizeof(sockopt_resp)) == -1 ) {
         Log(LOG_ERR, "%s:%d %s() Error while trying to get sockopt from %s - %s",
                         __FILE__, __LINE__, __func__, path, strerror(errno));
         return -1;
@@ -396,7 +396,6 @@ int get_tcp_state (char path[NG_PATHSIZ]) {
     skopt = (struct ng_ksocket_sockopt *)resp->data;
     info = (struct tcp_info *)skopt->value;
     tcpi_state = info->tcpi_state;
-    free(sockopt_resp);
     free(resp);
     return tcpi_state;
 }
