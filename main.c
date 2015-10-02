@@ -337,31 +337,30 @@ int client_dead(int node, int cmonsock) {
 	if ((int) token == -1) {
 		if (errno == ENOTCONN) {
 			Log(LOG_INFO,
-					"%s : Socket not connected, node %s: will be shutdown",
-					__func__, idbuf);
+					"%s:%d %s : Socket not connected, node %s: will be shutdown",
+					__FILE__, __LINE__, __func__, idbuf);
 			shut_node(idbuf);
 			return 1;
 		} else if (errno == ENOENT) {
-			Log(LOG_NOTICE, "%s (): Node already closed %s", __func__,
-					idbuf);
-			return 1;
+			Log(LOG_NOTICE, "%s:%d %s (): Node already closed %s", 
+                    __FILE__, __LINE__, __func__, idbuf);
+			return 0;
 		} else {
 			Log(LOG_ERR,
 					"%s (): An error has occured while getpeername from node: %s, %s",
 					__func__,  idbuf, strerror(errno));
-			return 0;
+			return -1;
 		}
 	}
 	if (NgAllocRecvMsg(cmonsock, &resp, NULL) < 0) {
         Log(LOG_ERR, "%s:%d Error while allocating message: %s", __FILE__, __LINE__, strerror(errno));
-		return 0;
+		return -1;
 	}
-
-	//peername = (struct sockaddr_in *)resp->data;
-	/*
-    Log(LOG_NOTICE, "%s(): Peer %s:%d still connected",
-			__func__, inet_ntoa(peername->sin_addr), ntohs(peername->sin_port));
-	*/
+    struct sockaddr_in *peername;
+	peername = (struct sockaddr_in *)resp->data;
+	
+    Log(LOG_NOTICE, "%s(): node = <%s> Peer %s:%d still connected", __func__, idbuf, 
+            inet_ntoa(peername->sin_addr), ntohs(peername->sin_port));
     free(resp);
     /* Checking if tcpi_state in struct tcp_info */
     int tcp_state = get_tcp_state(idbuf);
@@ -552,18 +551,12 @@ void shut_fanout(void) {
 // Shutdown Single node
 int shut_node(char path[NG_PATHSIZ]) {
 	char name[NG_PATHSIZ];
-	unsigned int i = 0;
-	memset(name, 0, sizeof(name));
-	while (i < strlen(path)) {
-		name[i] = path[i];
-		i++;
-	}
 
-	if (name[strlen(name) - 1] != ':') {
-		sprintf(name, "%s:", name);
-	}
+	memset(name, 0, sizeof(name));
+    memcpy( name, path, sizeof(name) );
+
 	if (NgSendMsg(csock, name, NGM_GENERIC_COOKIE, NGM_SHUTDOWN, NULL, 0) < 0) {
-		Log(LOG_INFO, "%s(): Error shutdowning fanout: %s\n", __func__,
+		Log(LOG_INFO, "%s(): Error shutdowning node: %s\n", __func__,
 				strerror(errno));
 		return (0);
 	}
