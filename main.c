@@ -358,9 +358,10 @@ int client_dead(int node, int cmonsock) {
 	}
     struct sockaddr_in *peername;
 	peername = (struct sockaddr_in *)resp->data;
-	
+    /*	
     Log(LOG_NOTICE, "%s(): node = <%s> Peer %s:%d still connected", __func__, idbuf, 
             inet_ntoa(peername->sin_addr), ntohs(peername->sin_port));
+    */
     free(resp);
     /* Checking if tcpi_state in struct tcp_info */
     int tcp_state = get_tcp_state(idbuf);

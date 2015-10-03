@@ -47,6 +47,10 @@ int set_tos(char path[NG_PATHSIZ]);
 int reuse_port(char path[NG_PATHSIZ]);
 int no_delay(char path[NG_PATHSIZ]);
 int get_client_address(int node_id);
+int set_ksocket_sndbuf(char path[NG_PATHSIZ], int bufsiz);
+int set_ksocket_rcvbuf(char path[NG_PATHSIZ], int bufsiz);
+int get_ksocket_sndbuf(char path[NG_PATHSIZ]);
+int set_ksocket_rcvbuf(char path[NG_PATHSIZ], int bufsiz);
 
 int new_handle_client( struct connect connect );
 int mkpeer_tee(struct connect connect );
@@ -86,11 +90,8 @@ void * mkserver_http(void) {
 
 	memset(pth, 0, sizeof(pth));
 	memset(&con, 0, sizeof(con));
-
 	memset((char *) &addr, 0, sizeof(addr));
-
 	memset(name, 0, sizeof(name));
-
 	memset(tokens, 0, sizeof(tokens));
 	// Naming Control socket node
 	sprintf(name, "srv-csock-%d", getpid());
@@ -114,6 +115,8 @@ void * mkserver_http(void) {
 			return NULL;
 		}
 		// Trying to find out for which server client connects
+        Log(LOG_INFO, "%s:%d %s() Received message from <%s>", 
+                __FILE__, __LINE__, __func__, pth);
 		for (i = 0; i < srv_count; i++) {
 			if (m->header.token == tokens[i]) {
 				found = 1;
@@ -128,7 +131,6 @@ void * mkserver_http(void) {
 		}
 		// Handling clients
 		sprintf(connect.pth, pth, sizeof(pth));
-		set_tos(pth);
 		connect.srv_num = i;
 
 		handle_client(connect);
@@ -301,6 +303,9 @@ int create_listening_socket(int i) {
 	// Setting tos value
 	set_tos(path);
 	no_delay(path);
+    set_tos(path);
+    set_ksocket_sndbuf(path, 256*1024);
+    set_ksocket_rcvbuf(path, 256*1024);
 	//  msg servsock: listen 64
 	lst = LST;
 	if (NgSendMsg(srv_csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_LISTEN, &lst,
@@ -524,5 +529,104 @@ int connect_tee(struct connect connect) {
 		return 0;
 	}
 
+    return 1;
+}
+
+int get_ksocket_sndbuf ( char path[NG_PATHSIZ] ) {
+    struct ng_ksocket_sockopt *getopt = malloc( sizeof(struct ng_ksocket_sockopt) + sizeof(int) );
+
+    memset(getopt, 0, sizeof(struct ng_ksocket_sockopt) + sizeof(int));
+    
+    getopt->level = SOL_SOCKET;
+    getopt->name = SO_SNDBUF;
+
+    NgSetDebug(3);   
+    if (NgSendMsg( csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_GETOPT, getopt, sizeof(*getopt) ) < 0) {
+       Log(LOG_ERR, "%s:%d %s() Error getting sockopt %s", __FILE__, __LINE__, __func__, strerror(errno)); 
+    } else {
+        struct ng_mesg *resp;
+        size_t *value ;
+        
+        if ( NgAllocRecvMsg(csock, &resp, 0 ) < 0 ) {
+            Log(LOG_ERR, "%s:%d %s() Error while trying to get message from getsockopt: %s",
+                __FILE__, __LINE__, __func__, strerror(errno));
+            return -1;
+        }
+        value = (size_t *)getopt->value;
+        Log(LOG_INFO, "%s:%d %s() current snd_buf_size = %d", __FILE__, __LINE__, __func__, *value );
+        struct ng_ksocket_sockopt *skopt;
+        skopt = (struct ng_ksocket_sockopt *)resp->data;
+        Log(LOG_INFO, "received sockopt len = %d", resp->header.arglen - sizeof(struct ng_ksocket_sockopt));
+        value = (size_t *)skopt->value;
+        Log(LOG_INFO, "%s:%d %s() current snd_buf_size_in_resp = %lu", __FILE__, __LINE__, __func__, *value);
+        free(getopt);
+        free(resp);
+    }
+    NgSetDebug(0);   
+    return 1;
+}
+/*
+ *
+ * */
+int set_ksocket_sndbuf(char path[NG_PATHSIZ], int bufsiz) {
+	union {
+		u_char buf[sizeof(struct ng_ksocket_sockopt) + sizeof(int)];
+		struct ng_ksocket_sockopt sockopt;
+	} sockopt_buf;
+	struct ng_ksocket_sockopt *const sockopt = &sockopt_buf.sockopt;
+
+    Log(LOG_INFO, "BEFORE"); 
+    get_ksocket_sndbuf(path);
+    memset(&sockopt_buf, 0, sizeof(sockopt_buf));
+    sockopt->level = SOL_SOCKET;
+    sockopt->name = SO_SNDBUF;
+
+    memcpy(sockopt->value, &bufsiz, sizeof(bufsiz));
+
+    if (NgSendMsg( csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT, sockopt, sizeof(sockopt_buf)) < 0) {
+        Log(LOG_ERR, "%s:%d %s() Error sending message %s", 
+                __FILE__, __LINE__, __func__, strerror(errno));
+        return -1;
+    }   
+
+    Log(LOG_INFO, "AFTER"); 
+    get_ksocket_sndbuf(path);
+    return 1;
+}
+/*
+ *
+ *
+ * */
+int set_ksocket_rcvbuf(char path[NG_PATHSIZ], int bufsiz) {
+	union {
+		u_char buf[sizeof(struct ng_ksocket_sockopt) + sizeof(int)];
+		struct ng_ksocket_sockopt sockopt;
+	} sockopt_buf;
+
+	struct ng_ksocket_sockopt *const sockopt = &sockopt_buf.sockopt;
+    struct ng_ksocket_sockopt *getopt = malloc( sizeof(struct ng_ksocket_sockopt) + sizeof(int) );
+    getopt->level = SOL_SOCKET;
+    getopt->name = SO_RCVBUF;
+    memset(getopt, 0, sizeof(struct ng_ksocket_sockopt) + sizeof(int));
+    Log(LOG_INFO, "%s:%d %s() sizeof(*getopt) = %d", __FILE__, __LINE__, __func__, sizeof(*getopt));
+    if (NgSendMsg( csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_GETOPT, getopt, sizeof(*getopt) ) < 0) {
+       Log(LOG_ERR, "%s:%d %s() Error getting sockopt %s", __FILE__, __LINE__, __func__, strerror(errno)); 
+    } else {
+        Log(LOG_INFO, "%s:%d %s() current snd_buf_size = %d", __FILE__, __LINE__, __func__, getopt->value);
+        free(getopt);
+    }
+
+
+    memset(&sockopt_buf, 0, sizeof(sockopt_buf));
+    sockopt->level = SOL_SOCKET;
+    sockopt->name = SO_RCVBUF;
+
+    memcpy(sockopt->value, &bufsiz, sizeof(bufsiz));
+
+    if (NgSendMsg( csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT, sockopt, sizeof(sockopt_buf)) < 0) {
+        Log(LOG_ERR, "%s:%d %s() Error sending message %s", 
+                __FILE__, __LINE__, __func__, strerror(errno));
+        return -1;
+    }   
     return 1;
 }
