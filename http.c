@@ -15,7 +15,7 @@
 
 #include "ng-r.h"
 
-#define LST 1024
+#define LST 64
 #define	RUSAGE_SELF	0
 #define	SERVSOCK	"-servsock"
 
