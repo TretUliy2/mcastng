@@ -632,6 +632,7 @@ int set_ksocket_rcvbuf(char path[NG_PATHSIZ], int bufsiz) {
     return 1;
 }
 
+/*
 int set_ksocket_shut_rd( char path[NG_PATHSIZ] ) {
 
     if ( NgSendMsg( srv_csock,  path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SHUTDOWN, SHUT_RD, sizeof(int)) < 0) {
@@ -641,3 +642,4 @@ int set_ksocket_shut_rd( char path[NG_PATHSIZ] ) {
     }
     return 1;
 }
+*/
