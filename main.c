@@ -42,11 +42,9 @@
 #define		UNNAMED	"<unnamed>"
 #define		Log_IDENT	"mcastng"
 
-static char const * const tcpstates[] = {
-	"CLOSED",	"LISTEN",	"SYN_SENT",	"SYN_RCVD",
-	"ESTABLISHED",	"CLOSE_WAIT",	"FIN_WAIT_1",	"CLOSING",
-	"LAST_ACK",	"FIN_WAIT_2",	"TIME_WAIT",
-};
+static char const * const tcpstates[] = { "CLOSED", "LISTEN", "SYN_SENT",
+		"SYN_RCVD", "ESTABLISHED", "CLOSE_WAIT", "FIN_WAIT_1", "CLOSING",
+		"LAST_ACK", "FIN_WAIT_2", "TIME_WAIT", };
 
 // Internal Functions
 void shut_fanout(void);
@@ -59,7 +57,7 @@ int shut_clients(int srv_num, int cmonsock);
 int client_dead(int node, int cmonsock);
 int shut_node(char path[NG_PATHSIZ]);
 void print_config(void);
-int get_tcp_state (char path[NG_PATHSIZ]);
+int get_tcp_state(char path[NG_PATHSIZ]);
 
 // External Functions
 extern int mkhub_udp(int srv_num);
@@ -100,7 +98,7 @@ int main(int argc, char **argv) {
 	memset(clients_secondary, 0, sizeof(clients_secondary));
 
 	primary = clients_primary;
-	secondary  = clients_secondary;
+	secondary = clients_secondary;
 	cfgflag = debug = dflag = iuflag = nflag = ihtflag = ohtflag = ouflag =
 			iuiflag = 0;
 	// Thread counter set to 0 and zeroing threads array
@@ -285,25 +283,28 @@ void signal_handler(int sig) {
 		exit_nice();
 		break;
 	case SIGUSR1:
-		Log(LOG_INFO, "%s: Caught SIGUSR1",
-				__func__);
+		Log(LOG_INFO, "%s: Caught SIGUSR1", __func__);
 		uint32_t i, c_count;
 		c_count = client_count;
-		for ( i = 0; i < c_count; i++ ) {
-			Log(LOG_INFO, "clint[%d] srv_num = %d node = [%08x]: address = %s:%d",
-					i, primary[i].srv_num, primary[i].node_id,
+		for (i = 0; i < c_count; i++) {
+			Log(LOG_INFO,
+					"clint[%d] srv_num = %d node = [%08x]: address = %s:%d", i,
+					primary[i].srv_num, primary[i].node_id,
 					inet_ntoa(primary[i].addr.sin_addr),
 					ntohs(primary[i].addr.sin_port));
 			//Log(LOG_INFO, "client[%d] srv_num = %d", i, primary[i].srv_num);
 		}
-		for (i = 0; i < (unsigned int)srv_count; i++) {
+		for (i = 0; i < (unsigned int) srv_count; i++) {
 			char src[100], dst[100];
-		    memset(src, 0, sizeof(src));
-		    memset(dst, 0, sizeof(src));
-			sprintf(src, "%s:%d", inet_ntoa(server_cfg[i].src.sin_addr), ntohs(server_cfg[i].src.sin_port));
-			sprintf(dst, "%s:%d", inet_ntoa(server_cfg[i].dst.sin_addr), ntohs(server_cfg[i].dst.sin_port));
+			memset(src, 0, sizeof(src));
+			memset(dst, 0, sizeof(src));
+			sprintf(src, "%s:%d", inet_ntoa(server_cfg[i].src.sin_addr),
+					ntohs(server_cfg[i].src.sin_port));
+			sprintf(dst, "%s:%d", inet_ntoa(server_cfg[i].dst.sin_addr),
+					ntohs(server_cfg[i].dst.sin_port));
 			if (server_cfg[i].streaming == 1)
-			Log(LOG_INFO, "server[%d] multicast(dst) = %s src = %s", i, dst, src);
+				Log(LOG_INFO, "server[%d] multicast(dst) = %s src = %s", i, dst,
+						src);
 		}
 		break;
 	default:
@@ -327,10 +328,10 @@ int client_dead(int node, int cmonsock) {
 	uint32_t token;
 	char idbuf[NG_PATHSIZ];
 	struct ng_mesg *resp;
-    //struct sockaddr_in *peername;
+	//struct sockaddr_in *peername;
 
-    /* Checking if peername is can be fetched from socket */
-	memset (idbuf, 0, sizeof(idbuf));
+	/* Checking if peername is can be fetched from socket */
+	memset(idbuf, 0, sizeof(idbuf));
 	snprintf(idbuf, sizeof(idbuf), "[%08x]:", node);
 	token = NgSendMsg(cmonsock, idbuf, NGM_KSOCKET_COOKIE,
 			NGM_KSOCKET_GETPEERNAME, NULL, 0);
@@ -342,65 +343,69 @@ int client_dead(int node, int cmonsock) {
 			shut_node(idbuf);
 			return 1;
 		} else if (errno == ENOENT) {
-			Log(LOG_NOTICE, "%s:%d %s (): Node already closed %s", 
-                    __FILE__, __LINE__, __func__, idbuf);
+			Log(LOG_NOTICE, "%s:%d %s (): Node already closed %s",
+			__FILE__, __LINE__, __func__, idbuf);
 			return 0;
 		} else {
 			Log(LOG_ERR,
 					"%s (): An error has occured while getpeername from node: %s, %s",
-					__func__,  idbuf, strerror(errno));
+					__func__, idbuf, strerror(errno));
 			return -1;
 		}
 	}
 	if (NgAllocRecvMsg(cmonsock, &resp, NULL) < 0) {
-        Log(LOG_ERR, "%s:%d Error while allocating message: %s", __FILE__, __LINE__, strerror(errno));
+		Log(LOG_ERR, "%s:%d Error while allocating message: %s", __FILE__,
+				__LINE__, strerror(errno));
 		return -1;
 	}
-    struct sockaddr_in *peername;
-	peername = (struct sockaddr_in *)resp->data;
-    /*	
-    Log(LOG_NOTICE, "%s(): node = <%s> Peer %s:%d still connected", __func__, idbuf, 
-            inet_ntoa(peername->sin_addr), ntohs(peername->sin_port));
-    */
-    free(resp);
-    /* Checking if tcpi_state in struct tcp_info */
-    int tcp_state = get_tcp_state(idbuf);
-    if ( tcp_state >= 5 && tcp_state <= 10 ) {
-        Log(LOG_INFO, "%s:%d detected socket with state = %s which is near to close, shuting node %s", 
-                        __FILE__, __LINE__, tcpstates[tcp_state], idbuf);
+	struct sockaddr_in *peername;
+	peername = (struct sockaddr_in *) resp->data;
+	/*
+	 Log(LOG_NOTICE, "%s(): node = <%s> Peer %s:%d still connected", __func__, idbuf,
+	 inet_ntoa(peername->sin_addr), ntohs(peername->sin_port));
+	 */
+	free(resp);
+	/* Checking if tcpi_state in struct tcp_info */
+	int tcp_state = get_tcp_state(idbuf);
+	if (tcp_state >= 5 && tcp_state <= 10) {
+		Log(LOG_INFO,
+				"%s:%d detected socket with state = %s which is near to close, shuting node %s",
+				__FILE__, __LINE__, tcpstates[tcp_state], idbuf);
 		shut_node(idbuf);
-        return 1;
-    }
+		return 1;
+	}
 	return 0;
 }
 
-int get_tcp_state (char path[NG_PATHSIZ]) {
-    struct ng_ksocket_sockopt *sockopt_resp = malloc(sizeof(struct ng_ksocket_sockopt) + sizeof(int));
-    struct ng_mesg *resp;
-    int tcpi_state;
-    memset(sockopt_resp, 0, sizeof(struct ng_ksocket_sockopt) + sizeof(int));
+int get_tcp_state(char path[NG_PATHSIZ]) {
+	struct ng_ksocket_sockopt *sockopt_resp = malloc(
+			sizeof(struct ng_ksocket_sockopt) + sizeof(int));
+	struct ng_mesg *resp;
+	int tcpi_state;
+	memset(sockopt_resp, 0, sizeof(struct ng_ksocket_sockopt) + sizeof(int));
 
-    sockopt_resp->level = IPPROTO_TCP;
-    sockopt_resp->name = TCP_INFO;
-    //NgSetDebug(3);
-    if ( NgSendMsg(csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_GETOPT,
-                            sockopt_resp, sizeof(*sockopt_resp)) == -1 ) {
-        Log(LOG_ERR, "Error while trying to get sockopt from %s - %s",
-                        path, strerror(errno));
-        return -1;
-    }
-    if ( NgAllocRecvMsg(csock, &resp, 0 ) < 0 ) {
-        Log(LOG_ERR, "Error while trying to get message from getsockopt: %s", strerror(errno));
-        return -1;
-    }
-    struct tcp_info *info;
-    struct ng_ksocket_sockopt *skopt;
-    skopt = (struct ng_ksocket_sockopt *)resp->data;
-    info = (struct tcp_info *)skopt->value;
-    tcpi_state = info->tcpi_state;
-    free(sockopt_resp);
-    free(resp);
-    return tcpi_state;
+	sockopt_resp->level = IPPROTO_TCP;
+	sockopt_resp->name = TCP_INFO;
+	//NgSetDebug(3);
+	if (NgSendMsg(csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_GETOPT,
+			sockopt_resp, sizeof(*sockopt_resp)) == -1) {
+		Log(LOG_ERR, "Error while trying to get sockopt from %s - %s", path,
+				strerror(errno));
+		return -1;
+	}
+	if (NgAllocRecvMsg(csock, &resp, 0) < 0) {
+		Log(LOG_ERR, "Error while trying to get message from getsockopt: %s",
+				strerror(errno));
+		return -1;
+	}
+	struct tcp_info *info;
+	struct ng_ksocket_sockopt *skopt;
+	skopt = (struct ng_ksocket_sockopt *) resp->data;
+	info = (struct tcp_info *) skopt->value;
+	tcpi_state = info->tcpi_state;
+	free(sockopt_resp);
+	free(resp);
+	return tcpi_state;
 }
 
 /* Get peer name to define is ksocket connected to client or not
@@ -427,7 +432,8 @@ int check_and_clear(int cmonsock) {
 		if (client_dead(primary[i].node_id, cmonsock)) {
 			// Dead node detected
 			Log(LOG_INFO, "%s() disconnected client %s:%d", __func__,
-					inet_ntoa(primary[i].addr.sin_addr), ntohs(primary[i].addr.sin_port));
+					inet_ntoa(primary[i].addr.sin_addr),
+					ntohs(primary[i].addr.sin_port));
 			int srv_num = primary[i].srv_num;
 			client_count--;
 			if (--server_cfg[srv_num].c_count == 0) {
@@ -447,7 +453,7 @@ int check_and_clear(int cmonsock) {
 	primary = secondary;
 	secondary = tmp;
 
-	memset(secondary, 0, sizeof(MAX_CLIENTS*sizeof(client)));
+	memset(secondary, 0, sizeof(MAX_CLIENTS * sizeof(client)));
 	return EXIT_SUCCESS;
 }
 // Shutdown clients
@@ -473,8 +479,8 @@ int shut_clients(int srv_num, int cmonsock) {
 	sprintf(hub, "%s:", server_cfg[srv_num].name);
 	// Get hooklist from hub
 
-	for ( i = 0; i < srv_count; i++ ) {
-		if ( server_cfg[i].streaming == 1 ) {
+	for (i = 0; i < srv_count; i++) {
+		if (server_cfg[i].streaming == 1) {
 			drop_mgroup(i);
 		}
 	}
@@ -482,9 +488,8 @@ int shut_clients(int srv_num, int cmonsock) {
 	token = NgSendMsg(cmonsock, hub, NGM_GENERIC_COOKIE, NGM_LISTHOOKS, NULL,
 			0);
 	if ((int) token < 0) {
-		Log(LOG_ERR, "%s(%d): Filed to get hooklist from node %s: %s",
-				__func__, srv_num, server_cfg[srv_num].name,
-				strerror(errno));
+		Log(LOG_ERR, "%s(%d): Filed to get hooklist from node %s: %s", __func__,
+				srv_num, server_cfg[srv_num].name, strerror(errno));
 		return EXIT_FAILURE;
 	}
 	// Receiving node_list
@@ -515,8 +520,8 @@ int shut_clients(int srv_num, int cmonsock) {
 				Log(LOG_DEBUG, "%s(%d): peername = %s", __func__, srv_num,
 						peername);
 			}
-			Log(LOG_NOTICE, "%s(%d): number of connected hooks = %d",
-					__func__, srv_num, ninfo->hooks);
+			Log(LOG_NOTICE, "%s(%d): number of connected hooks = %d", __func__,
+					srv_num, ninfo->hooks);
 			snprintf(idbuf, sizeof(idbuf), "[%08x]:", peer->id);
 			if ((strcmp(peer->type, "ksocket") == 0)
 					&& (strcmp(peername, UNNAMED) == 0)) {
@@ -554,7 +559,7 @@ int shut_node(char path[NG_PATHSIZ]) {
 	char name[NG_PATHSIZ];
 
 	memset(name, 0, sizeof(name));
-    memcpy( name, path, sizeof(name) );
+	memcpy(name, path, sizeof(name));
 
 	if (NgSendMsg(csock, name, NGM_GENERIC_COOKIE, NGM_SHUTDOWN, NULL, 0) < 0) {
 		Log(LOG_INFO, "%s(): Error shutdowning node: %s\n", __func__,
@@ -593,8 +598,7 @@ void daemonize(void) {
 	pid = fork();
 
 	if (pid < 0) {
-		fprintf(stderr, "%s(): Fork Filed: %s\n", __func__,
-				strerror(errno));
+		fprintf(stderr, "%s(): Fork Filed: %s\n", __func__, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 	// If parent process - close
@@ -606,8 +610,7 @@ void daemonize(void) {
 	// Create SID for the child process
 	sid = setsid();
 	if (sid < 0) {
-		fprintf(stderr, "%s(): setsid failed: %s\n", __func__,
-				strerror(errno));
+		fprintf(stderr, "%s(): setsid failed: %s\n", __func__, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 	if ((fp = fopen(pidfile, "w")) == NULL) {
@@ -618,8 +621,7 @@ void daemonize(void) {
 		fclose(fp);
 	}
 	if ((chdir("/")) < 0) {
-		fprintf(stderr, "%s(): chdir failed: %s\n", __func__,
-				strerror(errno));
+		fprintf(stderr, "%s(): chdir failed: %s\n", __func__, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 
@@ -651,7 +653,7 @@ void print_config(void) {
 
 		Log(LOG_DEBUG,
 				"%s: server_cfg[%d] src.ip = %s src.port = %d dst.ip = %s dst_port = %d",
-				__func__, i, src_ip, ntohs(server_cfg[i].src.sin_port),
-				dst_ip, ntohs(server_cfg[i].dst.sin_port));
+				__func__, i, src_ip, ntohs(server_cfg[i].src.sin_port), dst_ip,
+				ntohs(server_cfg[i].dst.sin_port));
 	}
 }

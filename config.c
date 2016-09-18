@@ -248,8 +248,7 @@ int parse_src(const char *phrase) {
 	} else {
 		// we should write correct value to server_cfg[srv_count].mifip here
 		if (!inet_aton(mifglob, &server_cfg[srv_count].mifip)) {
-			fprintf(stderr, "%s: error bad ip address : %s", __func__,
-					mifglob);
+			fprintf(stderr, "%s: error bad ip address : %s", __func__, mifglob);
 			return (0);
 		}
 		phrase = string;
